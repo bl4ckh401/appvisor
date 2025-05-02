@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 142 70% 50%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 142 70% 50%;
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 142 70% 50%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142 70% 50%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 142 30% 20%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 142 50% 25%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 142 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .glossy-card {
+    @apply bg-gradient-to-br from-background/80 to-background/60 backdrop-blur-md border border-border/30 shadow-lg;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 0 10px
+      rgba(80, 255, 120, 0.1);
+  }
+
+  .glossy-button {
+    @apply bg-gradient-to-br from-primary/90 to-primary/70 text-primary-foreground shadow-md;
+    box-shadow: 0 2px 10px rgba(80, 255, 120, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  }
+
+  .neon-border {
+    @apply border border-primary/50;
+    box-shadow: 0 0 5px rgba(80, 255, 120, 0.5), 0 0 10px rgba(80, 255, 120, 0.3), inset 0 0 5px rgba(80, 255, 120, 0.2);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 5px rgba(80, 255, 120, 0.5);
+  }
+
+  .image-pop {
+    transform: perspective(1000px) rotateX(2deg);
+    transition: all 0.3s ease;
+  }
+
+  .image-pop:hover {
+    transform: perspective(1000px) rotateX(0deg) scale(1.02);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 15px rgba(80, 255, 120, 0.4);
+  }
+}
+
+/* Glassmorphism effects */
+.glass-effect {
+  @apply bg-background/40 backdrop-blur-md border border-border/40 shadow-lg;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.glass-effect-strong {
+  @apply bg-background/60 backdrop-blur-lg border border-border/50 shadow-xl;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 2px 3px rgba(255, 255, 255, 0.1);
+}
+
+.glass-effect-light {
+  @apply bg-background/20 backdrop-blur-sm border border-border/30 shadow-md;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Glossy Effects */
+.glossy {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 3D Text Effects */
+.text-shadow-3d {
+  text-shadow: 0 1px 0 rgba(80, 220, 100, 0.3), 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* 3D Transforms */
+.transform-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+/* Gradient Animations */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Glow Effects */
+.glow {
+  box-shadow: 0 0 15px rgba(80, 220, 100, 0.3), 0 0 30px rgba(80, 220, 100, 0.1);
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(80, 220, 100, 0.3);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(80, 220, 100, 0.5);
+}
+
+/* Neon effects */
+
+/* Image pop effect */
+.image-pop:hover {
+  z-index: 10;
+}
