@@ -1,400 +1,308 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { GlassCard } from "@/components/ui/glass-card"
+import { Card3D } from "@/components/ui/card-3d"
 import { GlassButton } from "@/components/ui/glass-button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { getUserSubscription, cancelSubscription, type Subscription } from "@/lib/subscription"
+import { SubscriptionUsageDashboard } from "@/components/subscription-usage-dashboard"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, CreditCard, CheckCircle, AlertCircle, Calendar, Clock } from "lucide-react"
+import { Loader2, CreditCard, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react"
 
 export default function BillingPage() {
-  const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
-  const [cancelLoading, setCancelLoading] = useState(false)
-  const { toast } = useToast()
+  const [cancelling, setCancelling] = useState(false)
+  const [subscription, setSubscription] = useState<any>(null)
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([])
+  const [error, setError] = useState<string | null>(null)
+
   const router = useRouter()
+  const { toast } = useToast()
   const supabase = createClient()
 
+  // Fetch subscription data
   useEffect(() => {
-    async function loadSubscription() {
+    const fetchSubscriptionData = async () => {
       try {
         setLoading(true)
-        const sub = await getUserSubscription()
-        setSubscription(sub)
-      } catch (error) {
-        console.error("Error loading subscription:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load subscription details. Please try again.",
-          variant: "destructive",
-        })
+
+        // Get the current user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          // Redirect to auth page if not logged in
+          router.push("/auth?redirect=/billing")
+          return
+        }
+
+        // Get active subscription
+        const { data: activeSub } = await supabase
+          .from("user_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .single()
+
+        if (activeSub) {
+          setSubscription(activeSub)
+        } else {
+          // Check for canceled subscription
+          const { data: canceledSub } = await supabase
+            .from("user_subscriptions")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("status", "canceled")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single()
+
+          if (canceledSub) {
+            setSubscription(canceledSub)
+          }
+        }
+
+        // Get payment history
+        const { data: payments } = await supabase
+          .from("user_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+
+        if (payments) {
+          setPaymentHistory(payments)
+        }
+      } catch (err) {
+        console.error("Error fetching subscription data:", err)
+        setError("Failed to load subscription data")
       } finally {
         setLoading(false)
       }
     }
 
-    loadSubscription()
-  }, [toast])
+    fetchSubscriptionData()
+  }, [supabase, router])
 
+  // Handle subscription cancellation
   const handleCancelSubscription = async () => {
-    if (!subscription || subscription.plan === "free") return
+    if (!subscription) return
 
     try {
-      setCancelLoading(true)
-      const success = await cancelSubscription(subscription.id)
+      setCancelling(true)
 
-      if (success) {
-        toast({
-          title: "Subscription canceled",
-          description: "Your subscription has been canceled. You'll have access until the end of your billing period.",
-        })
+      // Call API to cancel subscription
+      const response = await fetch("/api/payments/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subscription_id: subscription.id,
+        }),
+      })
 
-        // Update local state
-        setSubscription({
-          ...subscription,
-          status: "canceled",
-        })
-
-        setCancelDialogOpen(false)
-      } else {
-        throw new Error("Failed to cancel subscription")
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to cancel subscription")
       }
-    } catch (error) {
-      console.error("Error canceling subscription:", error)
+
+      // Update subscription status locally
+      setSubscription({
+        ...subscription,
+        status: "canceled",
+      })
+
+      toast({
+        title: "Subscription Canceled",
+        description: "Your subscription has been canceled. You'll have access until the end of your billing period.",
+      })
+    } catch (err) {
+      console.error("Error canceling subscription:", err)
+      setError(err.message || "Failed to cancel subscription")
+
       toast({
         title: "Error",
-        description: "Failed to cancel subscription. Please try again.",
+        description: err.message || "Failed to cancel subscription. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setCancelLoading(false)
+      setCancelling(false)
     }
   }
 
-  const handleUpgrade = () => {
-    router.push("/subscribe")
-  }
-
+  // Format date for display
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     })
   }
 
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan) {
-      case "pro":
-        return "bg-lime-500/20 text-lime-500 hover:bg-lime-500/30"
-      case "team":
-        return "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
-      default:
-        return "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-    }
-  }
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500/20 text-green-500 hover:bg-green-500/30"
-      case "canceled":
-        return "bg-orange-500/20 text-orange-500 hover:bg-orange-500/30"
-      case "expired":
-        return "bg-red-500/20 text-red-500 hover:bg-red-500/30"
-      default:
-        return "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-    }
+  if (loading) {
+    return (
+      <div className="container max-w-4xl mx-auto py-8 px-4">
+        <Card3D className="p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p>Loading subscription details...</p>
+        </Card3D>
+      </div>
+    )
   }
 
   return (
-    <div className="container py-10">
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="flex items-center mb-6">
+        <Link
+          href="/dashboard"
+          className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </Link>
+      </div>
+
       <h1 className="text-3xl font-bold mb-8">Billing & Subscription</h1>
 
-      <Tabs defaultValue="subscription">
-        <TabsList className="mb-6">
-          <TabsTrigger value="subscription">Current Plan</TabsTrigger>
-          <TabsTrigger value="history">Payment History</TabsTrigger>
-        </TabsList>
+      {error && (
+        <div className="p-4 mb-6 rounded-md bg-destructive/10 text-destructive flex items-start">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+          <p>{error}</p>
+        </div>
+      )}
 
-        <TabsContent value="subscription">
-          {loading ? (
-            <GlassCard className="p-8 text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p>Loading subscription details...</p>
-            </GlassCard>
-          ) : (
-            <GlassCard className="p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+      <div className="grid grid-cols-1 gap-8">
+        {/* Subscription Usage Dashboard */}
+        <SubscriptionUsageDashboard />
+
+        {/* Subscription Management */}
+        {subscription && (
+          <Card3D className="p-6">
+            <h3 className="text-xl font-bold flex items-center mb-4">
+              <CreditCard className="h-5 w-5 text-primary mr-2" />
+              Subscription Management
+            </h3>
+
+            <div className="space-y-4">
+              {subscription.status === "active" && (
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 p-4 rounded-lg border border-border/40 bg-background/30">
+                  <div>
+                    <p className="font-medium">Cancel Subscription</p>
+                    <p className="text-sm text-muted-foreground">
+                      You'll still have access until {formatDate(subscription.current_period_end)}
+                    </p>
+                  </div>
+
+                  <GlassButton variant="destructive" onClick={handleCancelSubscription} disabled={cancelling}>
+                    {cancelling ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Cancelling...
+                      </>
+                    ) : (
+                      "Cancel Subscription"
+                    )}
+                  </GlassButton>
+                </div>
+              )}
+
+              {subscription.status === "canceled" && (
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 p-4 rounded-lg border border-border/40 bg-background/30">
+                  <div>
+                    <p className="font-medium">Renew Subscription</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your subscription ends on {formatDate(subscription.current_period_end)}
+                    </p>
+                  </div>
+
+                  <GlassButton asChild>
+                    <Link href={`/subscribe?plan=${subscription.plan}`}>Renew Subscription</Link>
+                  </GlassButton>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 p-4 rounded-lg border border-border/40 bg-background/30">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">
-                    {subscription?.plan === "free"
-                      ? "Free Plan"
-                      : subscription?.plan === "pro"
-                        ? "Pro Plan"
-                        : "Team Plan"}
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className={getPlanBadgeColor(subscription?.plan || "free")}>
-                      {subscription?.plan?.toUpperCase() || "FREE"}
-                    </Badge>
-                    <Badge variant="outline" className={getStatusBadgeColor(subscription?.status || "active")}>
-                      {subscription?.status?.toUpperCase() || "ACTIVE"}
-                    </Badge>
-                    {subscription?.is_annual && (
-                      <Badge variant="outline" className="bg-blue-500/20 text-blue-500 hover:bg-blue-500/30">
-                        ANNUAL
-                      </Badge>
-                    )}
-                  </div>
+                  <p className="font-medium">Change Plan</p>
+                  <p className="text-sm text-muted-foreground">Upgrade or downgrade your subscription</p>
                 </div>
 
-                {subscription?.plan === "free" ? (
-                  <GlassButton onClick={handleUpgrade} className="mt-4 md:mt-0">
-                    Upgrade Plan
-                  </GlassButton>
-                ) : subscription?.status === "active" ? (
-                  <GlassButton
-                    variant="outline"
-                    onClick={() => setCancelDialogOpen(true)}
-                    className="mt-4 md:mt-0 border-destructive/50 text-destructive hover:bg-destructive/10"
-                  >
-                    Cancel Subscription
-                  </GlassButton>
-                ) : (
-                  <GlassButton onClick={handleUpgrade} className="mt-4 md:mt-0">
-                    Renew Subscription
-                  </GlassButton>
-                )}
+                <GlassButton asChild variant="outline">
+                  <Link href="/pricing">View Plans</Link>
+                </GlassButton>
               </div>
+            </div>
+          </Card3D>
+        )}
 
-              {subscription && subscription.plan !== "free" && (
-                <div className="border-t border-border/40 pt-4 mt-4">
-                  <h3 className="text-lg font-medium mb-4">Subscription Details</h3>
+        {/* Payment History */}
+        {paymentHistory.length > 0 && (
+          <Card3D className="p-6">
+            <h3 className="text-xl font-bold mb-4">Payment History</h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center">
-                      <Calendar className="h-5 w-5 mr-2 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Current Period</p>
-                        <p>
-                          {formatDate(subscription.current_period_start)} -{" "}
-                          {formatDate(subscription.current_period_end)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center">
-                      <CreditCard className="h-5 w-5 mr-2 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Billing</p>
-                        <p>{subscription.is_annual ? "Annual" : "Monthly"}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center">
-                      <Clock className="h-5 w-5 mr-2 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Subscription Started</p>
-                        <p>{formatDate(subscription.created_at)}</p>
-                      </div>
-                    </div>
-
-                    {subscription.status === "canceled" && (
-                      <div className="flex items-center">
-                        <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Access Until</p>
-                          <p>{formatDate(subscription.current_period_end)}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {subscription.status === "canceled" && (
-                    <div className="mt-6 p-4 rounded-md bg-orange-500/10 border border-orange-500/20">
-                      <p className="text-sm">
-                        Your subscription has been canceled but you still have access to premium features until{" "}
-                        <strong>{formatDate(subscription.current_period_end)}</strong>. After this date, you'll be
-                        downgraded to the Free plan.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {subscription?.plan === "free" && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-medium mb-4">Available Plans</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <GlassCard className="p-4 border-lime-500/30">
-                      <h4 className="text-xl font-bold mb-2">Pro Plan</h4>
-                      <Badge variant="outline" className="bg-lime-500/20 text-lime-500 mb-4">
-                        RECOMMENDED
-                      </Badge>
-                      <ul className="space-y-2 mb-4">
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-lime-500" />
-                          <span>Unlimited mockups</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-lime-500" />
-                          <span>All premium templates</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-lime-500" />
-                          <span>Bulk generation (up to 10)</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-lime-500" />
-                          <span>Priority support</span>
-                        </li>
-                      </ul>
-                      <GlassButton onClick={() => router.push("/subscribe?plan=pro")} className="w-full">
-                        Upgrade to Pro
-                      </GlassButton>
-                    </GlassCard>
-
-                    <GlassCard className="p-4 border-purple-500/30">
-                      <h4 className="text-xl font-bold mb-2">Team Plan</h4>
-                      <Badge variant="outline" className="bg-purple-500/20 text-purple-500 mb-4">
-                        BEST VALUE
-                      </Badge>
-                      <ul className="space-y-2 mb-4">
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-purple-500" />
-                          <span>Everything in Pro</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-purple-500" />
-                          <span>Team collaboration (5 members)</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-purple-500" />
-                          <span>API access</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-purple-500" />
-                          <span>White labeling</span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-2 text-purple-500" />
-                          <span>Bulk generation (up to 50)</span>
-                        </li>
-                      </ul>
-                      <GlassButton onClick={() => router.push("/subscribe?plan=team")} className="w-full">
-                        Upgrade to Team
-                      </GlassButton>
-                    </GlassCard>
-                  </div>
-                </div>
-              )}
-            </GlassCard>
-          )}
-        </TabsContent>
-
-        <TabsContent value="history">
-          <GlassCard className="p-6">
-            <h2 className="text-xl font-bold mb-4">Payment History</h2>
-
-            {loading ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                <p>Loading payment history...</p>
-              </div>
-            ) : subscription?.plan === "free" ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No payment history available for free plan.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border/40">
-                      <th className="text-left py-2 px-4">Date</th>
-                      <th className="text-left py-2 px-4">Description</th>
-                      <th className="text-left py-2 px-4">Amount</th>
-                      <th className="text-left py-2 px-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border/40">
-                      <td className="py-2 px-4">{formatDate(subscription?.created_at || "")}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/40">
+                    <th className="text-left py-2 px-4 font-medium">Date</th>
+                    <th className="text-left py-2 px-4 font-medium">Plan</th>
+                    <th className="text-left py-2 px-4 font-medium">Status</th>
+                    <th className="text-left py-2 px-4 font-medium">Period</th>
+                    <th className="text-left py-2 px-4 font-medium">Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentHistory.map((payment) => (
+                    <tr key={payment.id} className="border-b border-border/20">
+                      <td className="py-2 px-4">{formatDate(payment.created_at)}</td>
                       <td className="py-2 px-4">
-                        {subscription?.plan.toUpperCase()} Plan - {subscription?.is_annual ? "Annual" : "Monthly"}{" "}
-                        Subscription
-                      </td>
-                      <td className="py-2 px-4">
-                        $
-                        {subscription?.is_annual
-                          ? subscription?.plan === "pro"
-                            ? "108.00"
-                            : "228.00"
-                          : subscription?.plan === "pro"
-                            ? "9.99"
-                            : "19.99"}
-                      </td>
-                      <td className="py-2 px-4">
-                        <Badge variant="outline" className="bg-green-500/20 text-green-500">
-                          PAID
+                        <Badge variant="outline" className="capitalize">
+                          {payment.plan}
                         </Badge>
                       </td>
+                      <td className="py-2 px-4">
+                        {payment.status === "active" ? (
+                          <Badge className="bg-green-500/20 text-green-500 hover:bg-green-500/30">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Active
+                          </Badge>
+                        ) : payment.status === "canceled" ? (
+                          <Badge className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30">Canceled</Badge>
+                        ) : (
+                          <Badge variant="outline">{payment.status}</Badge>
+                        )}
+                      </td>
+                      <td className="py-2 px-4">{payment.is_annual ? "Annual" : "Monthly"}</td>
+                      <td className="py-2 px-4">
+                        <span className="text-xs font-mono">
+                          {payment.payment_reference ? payment.payment_reference.substring(0, 10) + "..." : "N/A"}
+                        </span>
+                      </td>
                     </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </GlassCard>
-        </TabsContent>
-      </Tabs>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card3D>
+        )}
 
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to cancel your subscription? You'll still have access to premium features until the
-              end of your current billing period.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelLoading}>Keep Subscription</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                handleCancelSubscription()
-              }}
-              disabled={cancelLoading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Canceling...
-                </>
-              ) : (
-                "Yes, Cancel"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* No Subscription */}
+        {!subscription && (
+          <Card3D className="p-6 text-center">
+            <h3 className="text-xl font-bold mb-4">No Active Subscription</h3>
+            <p className="text-muted-foreground mb-6">
+              You don't have an active subscription. Upgrade to a paid plan to access premium features.
+            </p>
+            <GlassButton asChild>
+              <Link href="/pricing">View Plans</Link>
+            </GlassButton>
+          </Card3D>
+        )}
+      </div>
     </div>
   )
 }
