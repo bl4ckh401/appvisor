@@ -1,15 +1,10 @@
 "use client"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Sparkles, Star, Check } from "lucide-react"
 import Link from "next/link"
 import { Button3D } from "@/components/ui/button-3d"
+import { planFeatures } from "@/lib/plan-restrictions"
 
 interface PremiumFeaturesModalProps {
   isOpen: boolean
@@ -19,39 +14,53 @@ interface PremiumFeaturesModalProps {
 }
 
 export function PremiumFeaturesModal({ isOpen, onClose, feature, plan = "pro" }: PremiumFeaturesModalProps) {
+  // Map feature keys to display information
   const featureDetails = {
-    bulk_generation: {
+    bulkGeneration: {
       title: "Bulk Generation",
       description: "Generate multiple mockups at once to save time and streamline your workflow.",
-      proLimit: "Up to 10 mockups at once",
-      teamLimit: "Up to 50 mockups at once",
+      proLimit: `Up to ${planFeatures.pro.bulkGeneration} mockups at once`,
+      teamLimit: `Up to ${planFeatures.team.bulkGeneration} mockups at once`,
     },
-    unlimited_mockups: {
+    mockupsPerMonth: {
       title: "Unlimited Mockups",
       description: "Create as many mockups as you need without any monthly limits.",
       proLimit: "Unlimited mockups",
       teamLimit: "Unlimited mockups",
     },
-    custom_branding: {
+    customBranding: {
       title: "Custom Branding",
       description: "Add your own branding elements to mockups for a consistent look and feel.",
       proLimit: "Basic branding options",
       teamLimit: "Advanced branding options",
     },
-    team_collaboration: {
+    teamMembers: {
       title: "Team Collaboration",
       description: "Work together with your team members on mockups and projects.",
-      proLimit: "Not available",
-      teamLimit: "Up to 5 team members",
+      proLimit: `${planFeatures.pro.teamMembers} team member`,
+      teamLimit: `Up to ${planFeatures.team.teamMembers} team members`,
     },
-    api_access: {
+    apiAccess: {
       title: "API Access",
       description: "Integrate AppVisor with your own tools and workflows.",
       proLimit: "Not available",
       teamLimit: "Full API access",
     },
+    exportFormats: {
+      title: "Advanced Export Formats",
+      description: "Export your mockups in multiple formats for different use cases.",
+      proLimit: planFeatures.pro.exportFormats.join(", "),
+      teamLimit: planFeatures.team.exportFormats.join(", "),
+    },
+    support: {
+      title: "Priority Support",
+      description: "Get faster response times and dedicated support for your questions.",
+      proLimit: "Priority support",
+      teamLimit: "Dedicated support team",
+    },
   }
 
+  // Get feature information or use default fallback
   const details = featureDetails[feature] || {
     title: "Premium Feature",
     description: "This feature is available on our premium plans.",

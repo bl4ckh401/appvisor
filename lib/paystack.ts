@@ -1,39 +1,24 @@
-// Paystack integration utility
+// Import required dependencies
 import { createClient } from "@/lib/supabase/client"
-
-export interface PaystackPlan {
-  id: string
-  name: string
-  amount: number
-  interval: "monthly" | "annually"
-  currency: string
-  code: string
-}
 
 export interface PaystackConfig {
   publicKey: string
   email: string
-  amount: number // in kobo (for NGN) or cents (for USD)
+  amount: number // in cents for USD
   currency?: string
   plan?: string
   metadata?: Record<string, any>
-}
-
-export interface PaystackResponse {
-  reference: string
-  status: string
-  transaction: string
-  message: string
+  callback_url?: string
 }
 
 // Initialize Paystack checkout
 export const initializePaystack = (config: PaystackConfig): Promise<string> => {
   return new Promise((resolve, reject) => {
-    // Check if Paystack script is already loaded
+    // Use inline embed approach as recommended by Paystack docs
     if (window.PaystackPop) {
       openPaystackPopup(config, resolve, reject)
     } else {
-      // Load Paystack script if not already loaded
+      // Load Paystack script dynamically if not already loaded
       const script = document.createElement("script")
       script.src = "https://js.paystack.co/v1/inline.js"
       script.async = true
@@ -60,14 +45,15 @@ const openPaystackPopup = (
   const handler = window.PaystackPop.setup({
     key: config.publicKey,
     email: config.email,
-    amount: config.amount * 100, // Convert to kobo/cents
+    amount: config.amount, // Paystack expects amount in lowest currency unit (cents for USD)
     currency: config.currency || "USD",
     plan: config.plan,
     metadata: config.metadata || {},
+    callback_url: config.callback_url,
     onClose: () => {
       reject(new Error("Payment window closed"))
     },
-    callback: (response: PaystackResponse) => {
+    callback: (response: any) => {
       resolve(response.reference)
     },
   })
@@ -87,110 +73,13 @@ export const verifyPayment = async (reference: string): Promise<any> => {
     })
 
     if (!response.ok) {
-      throw new Error("Payment verification failed")
+      const errorData = await response.json()
+      throw new Error(errorData.error || "Payment verification failed")
     }
 
     return await response.json()
   } catch (error) {
     console.error("Payment verification error:", error)
     throw error
-  }
-}
-
-// Create a subscription for a user
-export const createSubscription = async (
-  planCode: string,
-  email: string,
-  isAnnual: boolean,
-): Promise<{ reference: string }> => {
-  try {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      throw new Error("User not authenticated")
-    }
-
-    // Initialize transaction with plan code
-    const response = await fetch("/api/payments/initialize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-        plan: planCode,
-        metadata: {
-          user_id: user.id,
-          is_annual: isAnnual,
-        },
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to initialize payment")
-    }
-
-    const data = await response.json()
-    return { reference: data.data.reference }
-  } catch (error) {
-    console.error("Subscription creation error:", error)
-    throw error
-  }
-}
-
-// Get available plans
-export const getPlans = async (): Promise<PaystackPlan[]> => {
-  try {
-    const response = await fetch("/api/payments/plans", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch plans")
-    }
-
-    const data = await response.json()
-    return data.data
-  } catch (error) {
-    console.error("Error fetching plans:", error)
-    return []
-  }
-}
-
-// Get user's active subscription
-export const getUserSubscription = async () => {
-  try {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return null
-    }
-
-    const { data, error } = await supabase
-      .from("user_subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single()
-
-    if (error) {
-      console.error("Error fetching subscription:", error)
-      return null
-    }
-
-    return data
-  } catch (error) {
-    console.error("Error fetching subscription:", error)
-    return null
   }
 }

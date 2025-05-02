@@ -1,14 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { GlassButton } from "@/components/ui/glass-button"
 import { Card3D } from "@/components/ui/card-3d"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Slider } from "@/components/ui/slider"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Loader2, Sparkles, AlertCircle, Layers, Download, Check } from "lucide-react"
-import { motion } from "framer-motion"
+import { useFeatureAccess } from "@/hooks/use-feature-access"
+import { Badge } from "@/components/ui/badge"
+import { trackFeatureUsage } from "@/lib/usage-tracking"
+import {
+  Loader2,
+  Sparkles,
+  AlertCircle,
+  Layers,
+  Download,
+  Check,
+  Zap,
+  Lightbulb,
+  Palette,
+  X,
+  Clock,
+  Lock,
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
 
 interface BulkGeneratorProps {
@@ -23,7 +39,26 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
   const [count, setCount] = useState(3)
   const [provider, setProvider] = useState<"openai" | "gemini">("gemini")
   const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:3" | "3:4" | "16:9" | "9:16">("9:16")
+  const [showPromptIdeas, setShowPromptIdeas] = useState(false)
   const { toast } = useToast()
+  
+  // Get feature access details
+  const { subscription, canAccess, checkFeatureAccess, getFeatureLimit, PremiumModal } = useFeatureAccess()
+
+  // Initialize count based on subscription
+  useEffect(() => {
+    // Set initial count based on subscription bulk generation limit
+    if (!subscription || subscription.plan === "free") {
+      // Free plan limit
+      setCount(Math.min(count, 3))
+    } else {
+      const bulkLimit = getFeatureLimit("bulkGeneration")
+      // Don't reduce if already below limit
+      if (count > bulkLimit) {
+        setCount(bulkLimit)
+      }
+    }
+  }, [subscription])
 
   // Creative prompt suggestions
   const promptSuggestions = [
@@ -46,11 +81,20 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
       return
     }
 
+    // Check if user has access to bulk generation feature
+    if (!checkFeatureAccess("bulkGeneration")) {
+      return // The feature access hook will handle showing the premium modal
+    }
+
+    // Get the limit based on subscription
+    const bulkLimit = getFeatureLimit("bulkGeneration")
+    
+    // Limit the number of prompts based on subscription
     const promptList = prompts
       .split("\n")
       .map((p) => p.trim())
       .filter((p) => p.length > 0)
-      .slice(0, count)
+      .slice(0, bulkLimit)
 
     if (promptList.length === 0) {
       setError("Please enter at least one valid prompt")
@@ -61,6 +105,9 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
       setLoading(true)
       setError(null)
       setGeneratedImages([])
+
+      // Track usage of the bulk generation feature
+      await trackFeatureUsage("bulk_generation", { count: promptList.length })
 
       // Choose API endpoint based on selected provider
       const endpoint = provider === "openai" ? "/api/generate-image" : "/api/gemini/generate-image"
@@ -145,11 +192,29 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
     })
   }
 
+  // Get bulk generation limit based on subscription
+  const getBulkGenerationLimit = () => {
+    if (!subscription) return 3 // Default to free tier limit
+    
+    if (subscription.plan === "pro") return 10
+    if (subscription.plan === "team") return 50
+    
+    return 3 // Free tier
+  }
+
+  const maxBulkCount = getBulkGenerationLimit()
+  const isPremium = subscription && subscription.plan !== "free"
+
   return (
     <Card3D className="p-4 glossy-card" intensity="medium">
       <h3 className="text-lg font-medium mb-4 flex items-center text-glow">
         <Layers className="h-4 w-4 text-primary mr-2" />
         Bulk Mockup Generator
+        {!isPremium && (
+          <Badge className="ml-2 bg-primary/10 text-xs" variant="outline">
+            <Lock className="h-3 w-3 mr-1" /> Premium
+          </Badge>
+        )}
       </h3>
 
       <div className="mb-4">
@@ -161,6 +226,7 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
             variant={provider === "openai" ? "default" : "outline"}
             onClick={() => setProvider("openai")}
             className={`flex-1 ${provider === "openai" ? "glossy-button" : ""}`}
+            disabled={true}
           >
             <Sparkles className="mr-2 h-4 w-4" />
             OpenAI
@@ -172,7 +238,7 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
             onClick={() => setProvider("gemini")}
             className={`flex-1 ${provider === "gemini" ? "glossy-button" : ""}`}
           >
-            <Sparkles className="mr-2 h-4 w-4" />
+            <Zap className="mr-2 h-4 w-4" />
             Gemini
           </GlassButton>
         </div>
@@ -180,9 +246,20 @@ export function BulkGenerator({ onImagesGenerated }: BulkGeneratorProps) {
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="prompts" className="mb-2 block">
-            Enter one prompt per line (max {count})
-          </Label>
+          <div className="flex justify-between items-center">
+            <Label htmlFor="prompts" className="mb-2 block">
+              Enter one prompt per line (max {count})
+            </Label>
+            <GlassButton
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPromptIdeas(!showPromptIdeas)}
+              className="text-xs"
+            >
+              <Lightbulb className="h-3 w-3 mr-1 text-primary" />
+              Ideas
+            </GlassButton>
+          </div>
           <Textarea
             id="prompts"
             value={prompts}
@@ -195,37 +272,58 @@ A food delivery app with vibrant colors"
           />
         </div>
 
-        <div>
-          <Label className="mb-2 block">Prompt Suggestions</Label>
-          <div className="flex flex-wrap gap-2">
-            {promptSuggestions.map((suggestion, index) => (
-              <GlassButton
-                key={index}
-                variant="outline"
-                size="sm"
-                onClick={() => addPromptSuggestion(suggestion)}
-                className="text-xs"
-              >
-                + {suggestion.substring(0, 20)}...
+        {showPromptIdeas && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mt-2 p-3 rounded-md bg-background/50 backdrop-blur-md border border-border/40 glossy"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-sm font-medium text-glow">Prompt Ideas</h4>
+              <GlassButton variant="ghost" size="sm" onClick={() => setShowPromptIdeas(false)}>
+                <X className="h-3 w-3" />
               </GlassButton>
-            ))}
-          </div>
-        </div>
+            </div>
+
+            <div className="space-y-1">
+              {promptSuggestions.map((idea, i) => (
+                <div
+                  key={i}
+                  className="text-xs p-1.5 rounded hover:bg-background/70 cursor-pointer flex items-start"
+                  onClick={() => addPromptSuggestion(idea)}
+                >
+                  <Palette className="h-3 w-3 mr-1.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span>{idea}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <Label>Number of Mockups: {count}</Label>
+            {isPremium ? (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary">
+                Max {maxBulkCount}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                Free Limit: 3
+              </Badge>
+            )}
           </div>
           <Slider
             value={[count]}
             min={1}
-            max={10}
+            max={maxBulkCount}
             step={1}
             onValueChange={(value) => setCount(value[0])}
             className="my-4"
           />
           <p className="text-xs text-muted-foreground">
-            Generate up to 10 mockups at once. Free accounts are limited to 3 mockups per batch.
+            Generate up to {maxBulkCount} mockups at once. {!isPremium && "Free accounts are limited to 3 mockups per batch."}
           </p>
         </div>
 
@@ -315,6 +413,9 @@ A food delivery app with vibrant colors"
           </div>
         </motion.div>
       )}
+      
+      {/* Render the premium modal component */}
+      <PremiumModal />
     </Card3D>
   )
 }

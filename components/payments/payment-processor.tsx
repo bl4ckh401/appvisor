@@ -1,67 +1,97 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card3D } from "@/components/ui/card-3d"
 import { GlassButton } from "@/components/ui/glass-button"
-import { initializePaystack, verifyPayment } from "@/lib/paystack"
+import { initializePaystack } from "@/lib/paystack"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react"
+import { planFeatures } from "@/lib/plan-restrictions"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, CreditCard, CheckCircle, AlertCircle, Calendar, Shield } from "lucide-react"
 
 interface PaymentProcessorProps {
   plan: "pro" | "team"
-  amount: number
   email: string
   isAnnual?: boolean
   onSuccess?: (data: any) => void
   onError?: (error: Error) => void
 }
 
-export function PaymentProcessor({ plan, amount, email, isAnnual = false, onSuccess, onError }: PaymentProcessorProps) {
+export function PaymentProcessor({ plan, email, isAnnual = false, onSuccess, onError }: PaymentProcessorProps) {
   const [loading, setLoading] = useState(false)
+  const [initializing, setInitializing] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [planDetails, setPlanDetails] = useState<{ code: string, amount: number } | null>(null)
   const { toast } = useToast()
   const router = useRouter()
 
-  // Plan codes from Paystack dashboard
-  const planCodes = {
-    pro: {
-      monthly: process.env.NEXT_PUBLIC_PAYSTACK_PRO_MONTHLY_PLAN || "PLN_pro_monthly",
-      annual: process.env.NEXT_PUBLIC_PAYSTACK_PRO_ANNUAL_PLAN || "PLN_pro_annual",
-    },
-    team: {
-      monthly: process.env.NEXT_PUBLIC_PAYSTACK_TEAM_MONTHLY_PLAN || "PLN_team_monthly",
-      annual: process.env.NEXT_PUBLIC_PAYSTACK_TEAM_ANNUAL_PLAN || "PLN_team_annual",
-    },
-  }
+  // Get plan details on component mount
+  useEffect(() => {
+    const fetchPlanDetails = async () => {
+      try {
+        // You could fetch plan details from your backend for more flexibility
+        // For now, we'll use hardcoded values based on your existing code
+        const planCode = isAnnual 
+          ? plan === "pro" ? "PLN_pro_annual" : "PLN_team_annual"
+          : plan === "pro" ? "PLN_pro_monthly" : "PLN_team_monthly";
+        
+        const amount = isAnnual 
+          ? plan === "pro" ? 15 * 12 * 100 : 39 * 12 * 100 // Convert to cents
+          : plan === "pro" ? 19 * 100 : 49 * 100; // Convert to cents
+          
+        setPlanDetails({ code: planCode, amount });
+      } catch (error) {
+        console.error("Error fetching plan details:", error);
+        setError("Failed to load subscription details. Please try again.");
+      } finally {
+        setInitializing(false);
+      }
+    };
+    
+    fetchPlanDetails();
+  }, [plan, isAnnual]);
 
   const handleCheckout = async () => {
+    if (!planDetails) return;
+    
     try {
       setLoading(true)
       setError(null)
-
-      // Get the appropriate plan code
-      const planCode = isAnnual ? planCodes[plan].annual : planCodes[plan].monthly
 
       // Initialize Paystack payment
       const reference = await initializePaystack({
         publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "",
         email,
-        amount: amount,
+        amount: planDetails.amount,
         currency: "USD",
-        plan: planCode,
+        plan: planDetails.code,
         metadata: {
           plan_type: plan,
           is_annual: isAnnual,
         },
+        callback_url: `${window.location.origin}/subscribe/success`
       })
 
       setProcessing(true)
 
       // Verify payment on the server
-      const verificationResult = await verifyPayment(reference)
+      const response = await fetch("/api/payments/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reference }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Payment verification failed")
+      }
+
+      const verificationResult = await response.json()
 
       // Handle successful payment
       setSuccess(true)
@@ -101,31 +131,86 @@ export function PaymentProcessor({ plan, amount, email, isAnnual = false, onSucc
       setLoading(false)
     }
   }
+  
+  // Helper function to format price based on plan
+  const formatPrice = () => {
+    if (plan === "pro") {
+      return isAnnual ? "$180" : "$19"
+    } else {
+      return isAnnual ? "$468" : "$49"
+    }
+  }
+  
+  // Helper function to format period
+  const formatPeriod = () => {
+    return isAnnual ? "/year" : "/month"
+  }
+  
+  // Format features list based on plan
+  const getFeaturesList = () => {
+    const features = [];
+    
+    if (plan === "pro") {
+      features.push(`${planFeatures.pro.mockupsPerMonth === Number.POSITIVE_INFINITY ? "Unlimited" : planFeatures.pro.mockupsPerMonth} mockups`);
+      features.push(`Up to ${planFeatures.pro.bulkGeneration} bulk generations`);
+      features.push("All export formats");
+      features.push("Priority support");
+    } else {
+      features.push(`${planFeatures.team.mockupsPerMonth === Number.POSITIVE_INFINITY ? "Unlimited" : planFeatures.team.mockupsPerMonth} mockups`);
+      features.push(`Up to ${planFeatures.team.bulkGeneration} bulk generations`);
+      features.push(`${planFeatures.team.teamMembers} team members`);
+      features.push("API access");
+      features.push("White labeling");
+    }
+    
+    return features;
+  }
+
+  if (initializing) {
+    return (
+      <Card3D className="p-6 glossy-card" intensity="medium">
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Card3D>
+    );
+  }
 
   return (
     <Card3D className="p-6 glossy-card" intensity="medium">
       <h3 className="text-xl font-bold mb-4 text-glow">Subscribe to {plan === "pro" ? "Pro" : "Team"} Plan</h3>
-
-      <div className="mb-6">
-        <div className="flex justify-between mb-2">
-          <span>Plan:</span>
-          <span className="font-medium">{plan === "pro" ? "Pro" : "Team"}</span>
+      
+      <div className="flex items-start gap-4 mb-6">
+        <div className="p-3 rounded-full bg-primary/10">
+          <Shield className="h-6 w-6 text-primary" />
         </div>
-
-        <div className="flex justify-between mb-2">
-          <span>Billing:</span>
-          <span className="font-medium">{isAnnual ? "Annual" : "Monthly"}</span>
+        <div>
+          <div className="flex items-baseline">
+            <span className="text-3xl font-bold">{formatPrice()}</span>
+            <span className="text-muted-foreground ml-1">{formatPeriod()}</span>
+          </div>
+          <Badge 
+            variant="outline" 
+            className={`mt-1 bg-${plan === "pro" ? "lime" : "purple"}-500/20 text-${plan === "pro" ? "lime" : "purple"}-500`}
+          >
+            {plan.toUpperCase()} PLAN
+          </Badge>
+          {isAnnual && (
+            <div className="text-sm text-emerald-500 mt-1">You save 20% with annual billing!</div>
+          )}
         </div>
+      </div>
 
-        <div className="flex justify-between mb-2">
-          <span>Amount:</span>
-          <span className="font-medium">
-            ${amount}
-            {isAnnual ? "/year" : "/month"}
-          </span>
-        </div>
-
-        {isAnnual && <div className="text-sm text-emerald-500 text-right">You save 20% with annual billing!</div>}
+      <div className="border-t border-border/30 pt-4 mb-6">
+        <h4 className="font-medium mb-3">Plan Features</h4>
+        <ul className="space-y-2">
+          {getFeaturesList().map((feature, index) => (
+            <li key={index} className="flex items-center">
+              <CheckCircle className="h-4 w-4 text-primary mr-2 flex-shrink-0" />
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {error && (
@@ -163,8 +248,12 @@ export function PaymentProcessor({ plan, amount, email, isAnnual = false, onSucc
       )}
 
       <div className="mt-4 text-xs text-center text-muted-foreground">
-        By subscribing, you agree to our Terms of Service and Privacy Policy. You can cancel your subscription at any
-        time.
+        <Calendar className="inline-block h-3 w-3 mr-1" />
+        {isAnnual ? "Annual" : "Monthly"} subscription. Cancel anytime.
+      </div>
+      
+      <div className="mt-2 text-xs text-center text-muted-foreground">
+        By subscribing, you agree to our Terms of Service and Privacy Policy.
       </div>
     </Card3D>
   )

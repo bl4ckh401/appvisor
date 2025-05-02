@@ -2,13 +2,16 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { GlassButton } from "@/components/ui/glass-button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
+import { useFeatureAccess } from "@/hooks/use-feature-access"
+import { trackFeatureUsage } from "@/lib/usage-tracking"
 import {
   Loader2,
   Sparkles,
@@ -26,9 +29,7 @@ import {
   Clock,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Card3D } from "@/components/ui/card-3d"
 import { useToast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
 
 interface AIImageGeneratorProps {
   onImageGenerated: (imageUrl: string) => void
@@ -47,44 +48,44 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
   const [provider, setProvider] = useState<"openai" | "gemini">("gemini")
   const [aspectRatio, setAspectRatio] = useState<"1:1" | "4:3" | "3:4" | "16:9" | "9:16">("9:16")
   const [showPromptIdeas, setShowPromptIdeas] = useState(false)
+  const [usageStats, setUsageStats] = useState<{ current: number, limit: number | string }>({ current: 0, limit: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const { subscription, checkFeatureAccess, getFeatureLimit, getRemaining, PremiumModal } = useFeatureAccess()
 
   // Creative prompt suggestions
-  const promptIdeas = [
-    {
-      category: "UI Styles",
-      prompts: [
-        "Sleek dark UI with neon green accents and glass morphism",
-        "Minimalist white interface with subtle shadows and pastel highlights",
-        "Neumorphic design with soft shadows and light gray background",
-        "Cyberpunk-inspired interface with glowing elements and tech details",
-        "Elegant UI with gold accents and premium dark background",
-      ],
-    },
-    {
-      category: "App Types",
-      prompts: [
-        "Fitness tracking app with workout progress visualization and stats",
-        "Meditation app with calming imagery and focus timer",
-        "Food delivery app with vibrant food photography and order tracking",
-        "Productivity app with kanban boards and task management",
-        "Travel booking app with destination imagery and booking flow",
-      ],
-    },
-    {
-      category: "Visual Elements",
-      prompts: [
-        "3D elements popping out of the screen with realistic shadows",
-        "Floating UI cards with depth and perspective",
-        "Animated gradient backgrounds with subtle motion",
-        "Isometric illustrations integrated with the interface",
-        "Glassmorphism cards with blur effects and transparency",
-      ],
-    },
+  const promptSuggestions = [
+    "A sleek fitness app with workout tracking, dark theme with neon green accents",
+    "A minimalist meditation app with calming blue gradients and zen-inspired UI",
+    "A food delivery app with vibrant food photography and intuitive ordering flow",
+    "A productivity app with kanban boards, clean layout, and subtle animations",
+    "A travel booking app with immersive destination imagery and smooth booking process",
   ]
 
-  // Enhanced prompt engineering
+  // Get usage stats on component mount
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (!subscription) return;
+      
+      try {
+        // Get remaining mockups this month
+        const remaining = await getRemaining("mockupsPerMonth");
+        const limit = getFeatureLimit("mockupsPerMonth");
+        
+        if (limit === Number.POSITIVE_INFINITY) {
+          setUsageStats({ current: 0, limit: "Unlimited" });
+        } else {
+          const used = limit - remaining;
+          setUsageStats({ current: used, limit });
+        }
+      } catch (error) {
+        console.error("Error fetching usage stats:", error);
+      }
+    };
+    
+    fetchUsage();
+  }, [subscription]);
+
   const enhancePrompt = (basePrompt: string): string => {
     const enhancers = [
       "Create a professional, high-quality app screenshot with",
@@ -126,9 +127,22 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
       return
     }
 
+    // Check if we've reached the mockup limit for this month
+    if (typeof usageStats.limit === 'number' && usageStats.current >= usageStats.limit) {
+      setError("You've reached your monthly mockup limit. Upgrade your plan to create more mockups.")
+      return;
+    }
+
     try {
       setLoading(true)
       setError(null)
+
+      // Track usage of mockup generation
+      await trackFeatureUsage("mockup_generation", {
+        provider,
+        prompt_length: prompt.length,
+        aspect_ratio: aspectRatio
+      })
 
       // Enhanced prompt with better instructions
       const enhancedPrompt = enhancePrompt(prompt)
@@ -160,6 +174,12 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
 
       setGeneratedImage(data.url)
       setRetryCount(0) // Reset retry count on success
+      
+      // Update usage stats
+      setUsageStats(prev => ({
+        current: prev.current + 1,
+        limit: prev.limit
+      }))
 
       toast({
         title: "Image generated!",
@@ -189,10 +209,23 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
       setError("Please enter a caption for your mockup")
       return
     }
+    
+    // Check if we've reached the mockup limit for this month
+    if (typeof usageStats.limit === 'number' && usageStats.current >= usageStats.limit) {
+      setError("You've reached your monthly mockup limit. Upgrade your plan to create more mockups.")
+      return;
+    }
 
     try {
       setLoading(true)
       setError(null)
+
+      // Track usage of mockup generation
+      await trackFeatureUsage("mockup_generation", {
+        provider,
+        has_screenshot: true,
+        aspect_ratio: aspectRatio
+      })
 
       const mockupPrompt = `Create a professional app store screenshot mockup with the following caption: "${caption}". 
       Use a ${style === "gradient" ? "gradient" : "solid"} background with the base color ${backgroundColor}. 
@@ -226,6 +259,12 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
 
       setGeneratedImage(data.url)
       setRetryCount(0) // Reset retry count on success
+      
+      // Update usage stats
+      setUsageStats(prev => ({
+        current: prev.current + 1,
+        limit: prev.limit
+      }))
 
       toast({
         title: "Mockup generated!",
@@ -302,12 +341,44 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
     setShowPromptIdeas(false)
   }
 
+  // Determine if free tier and show usage limits
+  const isFreeTier = !subscription || subscription.plan === "free";
+  const showUpgradeNeeded = isFreeTier && typeof usageStats.limit === 'number' && usageStats.current >= usageStats.limit;
+
   return (
-    <Card3D className="p-4 glossy-card" intensity="medium">
+    <GlassCard className="p-4 glossy-card" intensity="medium">
       <h3 className="text-lg font-medium mb-4 flex items-center text-glow">
         <Sparkles className="h-4 w-4 text-primary mr-2" />
         AI Mockup Generator
       </h3>
+
+      {/* Usage stats */}
+      <div className="mb-4 flex justify-between items-center">
+        <div>
+          <Label className="text-sm">Monthly Usage</Label>
+          <div className="text-xs text-muted-foreground">
+            {usageStats.current} / {usageStats.limit} mockups
+          </div>
+        </div>
+        
+        {isFreeTier && (
+          <GlassButton size="sm" variant="outline" asChild>
+            <Link href="/subscribe">Upgrade</Link>
+          </GlassButton>
+        )}
+      </div>
+
+      {showUpgradeNeeded && (
+        <div className="p-3 rounded-md bg-amber-500/10 text-amber-500 text-sm flex items-center mb-4">
+          <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+          <div className="flex-1">
+            You've reached your free tier limit of {usageStats.limit} mockups this month.
+            <Link href="/subscribe" className="block mt-1 font-medium hover:underline">
+              Upgrade to Pro for unlimited mockups →
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4">
         <Label className="mb-2 block">AI Provider</Label>
@@ -377,6 +448,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
               placeholder="E.g., A fitness app dashboard showing workout progress with a dark theme and lime green accents"
               className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
               rows={3}
+              disabled={showUpgradeNeeded}
             />
 
             {showPromptIdeas && (
@@ -393,21 +465,14 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                   </GlassButton>
                 </div>
 
-                {promptIdeas.map((category, idx) => (
-                  <div key={idx} className="mb-3">
-                    <h5 className="text-xs font-medium mb-1 text-primary">{category.category}</h5>
-                    <div className="space-y-1">
-                      {category.prompts.map((idea, i) => (
-                        <div
-                          key={i}
-                          className="text-xs p-1.5 rounded hover:bg-background/70 cursor-pointer flex items-start"
-                          onClick={() => handlePromptIdeaClick(idea)}
-                        >
-                          <Palette className="h-3 w-3 mr-1.5 text-primary flex-shrink-0 mt-0.5" />
-                          <span>{idea}</span>
-                        </div>
-                      ))}
-                    </div>
+                {promptSuggestions.map((category, idx) => (
+                  <div
+                    key={idx}
+                    className="text-xs p-1.5 rounded hover:bg-background/70 cursor-pointer flex items-start"
+                    onClick={() => handlePromptIdeaClick(category)}
+                  >
+                    <Palette className="h-3 w-3 mr-1.5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{category}</span>
                   </div>
                 ))}
               </motion.div>
@@ -422,23 +487,23 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
               className="flex flex-wrap gap-2"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1:1" id="ratio-1-1-ai" />
+                <RadioGroupItem value="1:1" id="ratio-1-1-ai" disabled={showUpgradeNeeded} />
                 <Label htmlFor="ratio-1-1-ai">1:1</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="4:3" id="ratio-4-3-ai" />
+                <RadioGroupItem value="4:3" id="ratio-4-3-ai" disabled={showUpgradeNeeded} />
                 <Label htmlFor="ratio-4-3-ai">4:3</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3:4" id="ratio-3-4-ai" />
+                <RadioGroupItem value="3:4" id="ratio-3-4-ai" disabled={showUpgradeNeeded} />
                 <Label htmlFor="ratio-3-4-ai">3:4</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="16:9" id="ratio-16-9-ai" />
+                <RadioGroupItem value="16:9" id="ratio-16-9-ai" disabled={showUpgradeNeeded} />
                 <Label htmlFor="ratio-16-9-ai">16:9</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="9:16" id="ratio-9-16-ai" />
+                <RadioGroupItem value="9:16" id="ratio-9-16-ai" disabled={showUpgradeNeeded} />
                 <Label htmlFor="ratio-9-16-ai">9:16</Label>
               </div>
             </RadioGroup>
@@ -449,13 +514,13 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
               <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
               <div className="flex-1">{error}</div>
               <div className="flex gap-2">
-                {retryCount < 3 && (
+                {retryCount < 3 && !showUpgradeNeeded && (
                   <GlassButton size="sm" variant="outline" onClick={handleRetry}>
                     <RefreshCw className="h-3 w-3 mr-1" />
                     Retry
                   </GlassButton>
                 )}
-                {retryCount >= 3 && (
+                {retryCount >= 3 && !showUpgradeNeeded && (
                   <GlassButton size="sm" variant="outline" onClick={useFallbackImage}>
                     <ImageIcon className="h-3 w-3 mr-1" />
                     Use Fallback
@@ -466,7 +531,11 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
           )}
 
           <div className="flex justify-end">
-            <GlassButton onClick={generateImage} disabled={loading} className="glossy-button">
+            <GlassButton 
+              onClick={generateImage} 
+              disabled={loading || showUpgradeNeeded || !prompt.trim()} 
+              className="glossy-button"
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -486,7 +555,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
           <div className="space-y-4">
             <div
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-background/50 transition-colors glossy"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !showUpgradeNeeded && fileInputRef.current?.click()}
             >
               {uploadedImage ? (
                 <div className="relative">
@@ -496,7 +565,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                     className="max-h-48 mx-auto rounded-md"
                   />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <GlassButton size="sm" variant="secondary" className="glossy-button">
+                    <GlassButton size="sm" variant="secondary" className="glossy-button" disabled={showUpgradeNeeded}>
                       <ImageIcon className="h-4 w-4 mr-2" />
                       Change Image
                     </GlassButton>
@@ -505,7 +574,9 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
               ) : (
                 <>
                   <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">Click to upload your app screenshot</p>
+                  <p className="text-muted-foreground">
+                    {showUpgradeNeeded ? "Upgrade your plan to upload images" : "Click to upload your app screenshot"}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">PNG, JPG or WebP (max. 5MB)</p>
                 </>
               )}
@@ -520,6 +591,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder="e.g., Quit Any Addiction"
                 className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
+                disabled={showUpgradeNeeded}
               />
               <p className="text-xs text-muted-foreground">This will appear as the headline above your screenshot</p>
             </div>
@@ -534,12 +606,14 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                     value={backgroundColor}
                     onChange={(e) => setBackgroundColor(e.target.value)}
                     className="w-12 h-10 p-1"
+                    disabled={showUpgradeNeeded}
                   />
                   <Input
                     type="text"
                     value={backgroundColor}
                     onChange={(e) => setBackgroundColor(e.target.value)}
                     className="flex-1 bg-background/30 backdrop-blur-sm border-border/40 glossy"
+                    disabled={showUpgradeNeeded}
                   />
                 </div>
               </div>
@@ -553,6 +627,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                     variant={style === "gradient" ? "default" : "outline"}
                     onClick={() => setStyle("gradient")}
                     className={`flex-1 ${style === "gradient" ? "glossy-button" : ""}`}
+                    disabled={showUpgradeNeeded}
                   >
                     Gradient
                   </GlassButton>
@@ -562,6 +637,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                     variant={style === "solid" ? "default" : "outline"}
                     onClick={() => setStyle("solid")}
                     className={`flex-1 ${style === "solid" ? "glossy-button" : ""}`}
+                    disabled={showUpgradeNeeded}
                   >
                     Solid
                   </GlassButton>
@@ -577,23 +653,23 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                 className="flex flex-wrap gap-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1:1" id="ratio-1-1" />
+                  <RadioGroupItem value="1:1" id="ratio-1-1" disabled={showUpgradeNeeded} />
                   <Label htmlFor="ratio-1-1">1:1</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="4:3" id="ratio-4-3" />
+                  <RadioGroupItem value="4:3" id="ratio-4-3" disabled={showUpgradeNeeded} />
                   <Label htmlFor="ratio-4-3">4:3</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="3:4" id="ratio-3-4" />
+                  <RadioGroupItem value="3:4" id="ratio-3-4" disabled={showUpgradeNeeded} />
                   <Label htmlFor="ratio-3-4">3:4</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="16:9" id="ratio-16-9" />
+                  <RadioGroupItem value="16:9" id="ratio-16-9" disabled={showUpgradeNeeded} />
                   <Label htmlFor="ratio-16-9">16:9</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="9:16" id="ratio-9-16" />
+                  <RadioGroupItem value="9:16" id="ratio-9-16" disabled={showUpgradeNeeded} />
                   <Label htmlFor="ratio-9-16">9:16</Label>
                 </div>
               </RadioGroup>
@@ -604,13 +680,13 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
                 <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
                 <div className="flex-1">{error}</div>
                 <div className="flex gap-2">
-                  {retryCount < 3 && (
+                  {retryCount < 3 && !showUpgradeNeeded && (
                     <GlassButton size="sm" variant="outline" onClick={handleRetry}>
                       <RefreshCw className="h-3 w-3 mr-1" />
                       Retry
                     </GlassButton>
                   )}
-                  {retryCount >= 3 && (
+                  {retryCount >= 3 && !showUpgradeNeeded && (
                     <GlassButton size="sm" variant="outline" onClick={useFallbackImage}>
                       <ImageIcon className="h-3 w-3 mr-1" />
                       Use Fallback
@@ -623,7 +699,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
             <div className="flex justify-end">
               <GlassButton
                 onClick={generateAppStoreMockup}
-                disabled={loading || !uploadedImage || !caption.trim()}
+                disabled={loading || showUpgradeNeeded || !uploadedImage || !caption.trim()}
                 className="glossy-button"
               >
                 {loading ? (
@@ -682,6 +758,9 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
           </motion.div>
         )}
       </AnimatePresence>
-    </Card3D>
+      
+      {/* Render the premium modal */}
+      <PremiumModal />
+    </GlassCard>
   )
 }

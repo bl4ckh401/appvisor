@@ -1,37 +1,84 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card3D } from "@/components/ui/card-3d"
-import { PaymentProcessor } from "@/components/payments/payment-processor"
+import { GlassButton } from "@/components/ui/glass-button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { initializePaystack, verifyPayment } from "@/lib/paystack"
+import { useToast } from "@/hooks/use-toast"
 import { Loader2, ArrowLeft, CheckCircle } from "lucide-react"
 import Link from "next/link"
 
 export default function SubscribePage() {
   const [loading, setLoading] = useState(true)
+  const [initializingPayment, setInitializingPayment] = useState(false)
+  const [verifyingPayment, setVerifyingPayment] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [annual, setAnnual] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { toast } = useToast()
   const supabase = createClient()
 
   const planParam = searchParams.get("plan") || "pro"
   const plan = planParam === "team" ? "team" : "pro"
+  const reference = searchParams.get("reference") // For payment verification
 
-  // Calculate amount based on plan and billing cycle
-  const getAmount = () => {
-    if (plan === "pro") {
-      return annual ? 180 : 19
-    } else if (plan === "team") {
-      return annual ? 468 : 49
+  // Handle successful Paystack payments
+  useEffect(() => {
+    const verifyPaystackPayment = async () => {
+      if (!reference) return
+      
+      try {
+        setVerifyingPayment(true)
+        
+        // Call your verify payment API
+        const response = await fetch("/api/payments/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ reference }),
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || "Payment verification failed")
+        }
+        
+        const result = await response.json()
+        
+        // Show success message
+        setPaymentSuccess(true)
+        toast({
+          title: "Payment successful!",
+          description: `You are now subscribed to the ${plan.toUpperCase()} plan.`,
+        })
+        
+        // Redirect to dashboard after a delay
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 3000)
+      } catch (error) {
+        console.error("Payment verification error:", error)
+        toast({
+          title: "Payment verification failed",
+          description: error.message || "An error occurred during payment verification.",
+          variant: "destructive",
+        })
+      } finally {
+        setVerifyingPayment(false)
+      }
     }
-    return 0
-  }
+    
+    if (reference) {
+      verifyPaystackPayment()
+    }
+  }, [reference, plan, toast, router])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -58,31 +105,113 @@ export default function SubscribePage() {
     checkAuth()
   }, [supabase, router, plan])
 
-  const handlePaymentSuccess = async () => {
+  // Calculate amount based on plan and billing cycle
+  const getAmount = () => {
+    if (plan === "pro") {
+      return annual ? 15 * 12 * 100 : 19 * 100 // Convert to cents
+    } else if (plan === "team") {
+      return annual ? 39 * 12 * 100 : 49 * 100 // Convert to cents
+    }
+    return 0
+  }
+
+  // Calculate discount amount for annual billing
+  const getDiscountAmount = () => {
+    if (plan === "pro") {
+      return annual ? (19 * 12 - 15 * 12) * 100 : 0
+    } else if (plan === "team") {
+      return annual ? (49 * 12 - 39 * 12) * 100 : 0
+    }
+    return 0
+  }
+
+  // Format currency 
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: annual ? 0 : 2,
+    }).format(amount / 100)
+  }
+
+  // Handle Paystack checkout
+  const handleCheckout = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to subscribe.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      // Update user subscription in database
-      const { error } = await supabase.from("user_subscriptions").upsert({
-        user_id: user.id,
-        plan: plan,
-        status: "active",
-        is_annual: annual,
-        expires_at: new Date(Date.now() + (annual ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
+      setInitializingPayment(true)
+
+      // Initialize Paystack payment
+      const paystackRef = await initializePaystack({
+        publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "",
+        email: user.email,
+        amount: getAmount(),
+        currency: "USD",
+        metadata: {
+          plan_type: plan,
+          is_annual: annual,
+          user_id: user.id,
+          custom_fields: [
+            {
+              display_name: "Plan",
+              variable_name: "plan",
+              value: plan
+            },
+            {
+              display_name: "Billing",
+              variable_name: "billing",
+              value: annual ? "annual" : "monthly"
+            }
+          ]
+        },
+        callback_url: `${window.location.origin}/subscribe/success?plan=${plan}&annual=${annual}`
       })
 
-      if (error) {
-        console.error("Error updating subscription:", error)
-      }
+      // Paystack will handle the redirect in the popup
+      console.log("Paystack payment initialized:", paystackRef)
     } catch (error) {
-      console.error("Subscription update error:", error)
+      console.error("Payment initialization error:", error)
+
+      toast({
+        title: "Payment initialization failed",
+        description: error.message || "An error occurred during payment processing.",
+        variant: "destructive",
+      })
+    } finally {
+      setInitializingPayment(false)
     }
   }
 
-  if (loading) {
+  if (loading || verifyingPayment) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="container max-w-4xl py-16 px-4">
         <Card3D className="p-8 text-center glossy-card" intensity="medium">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p>Loading subscription details...</p>
+          <p>{verifyingPayment ? "Verifying payment..." : "Loading subscription details..."}</p>
+        </Card3D>
+      </div>
+    )
+  }
+
+  if (paymentSuccess) {
+    return (
+      <div className="container max-w-4xl py-16 px-4">
+        <Card3D className="p-8 text-center glossy-card" intensity="medium">
+          <CheckCircle className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
+          <p className="text-muted-foreground mb-6">
+            Your subscription to the {plan.toUpperCase()} plan has been activated. Thank you for subscribing!
+          </p>
+          <GlassButton asChild className="glossy-button">
+            <Link href="/dashboard">Go to Dashboard</Link>
+          </GlassButton>
         </Card3D>
       </div>
     )
@@ -144,13 +273,73 @@ export default function SubscribePage() {
         </div>
 
         <div>
-          <PaymentProcessor
-            plan={plan}
-            amount={getAmount()}
-            email={user?.email || ""}
-            isAnnual={annual}
-            onSuccess={handlePaymentSuccess}
-          />
+          <Card3D className="p-6 glossy-card" intensity="medium">
+            <h3 className="text-xl font-bold mb-4 text-glow">Subscribe to {plan === "pro" ? "Pro" : "Team"} Plan</h3>
+
+            <div className="mb-6">
+              <div className="flex justify-between mb-2">
+                <span>Plan:</span>
+                <span className="font-medium">{plan === "pro" ? "Pro" : "Team"}</span>
+              </div>
+
+              <div className="flex justify-between mb-2">
+                <span>Billing:</span>
+                <span className="font-medium">{annual ? "Annual" : "Monthly"}</span>
+              </div>
+
+              <div className="flex justify-between mb-2">
+                <span>Base Amount:</span>
+                <span className="font-medium">
+                  {formatAmount(getAmount())}
+                  {annual ? "/year" : "/month"}
+                </span>
+              </div>
+
+              {annual && (
+                <div className="flex justify-between mb-2 text-emerald-500">
+                  <span>Annual Discount:</span>
+                  <span className="font-medium">- {formatAmount(getDiscountAmount())}</span>
+                </div>
+              )}
+
+              <div className="border-t border-border/40 mt-2 pt-2">
+                <div className="flex justify-between font-bold">
+                  <span>Total:</span>
+                  <span>
+                    {formatAmount(getAmount())}
+                    {annual ? "/year" : "/month"}
+                  </span>
+                </div>
+              </div>
+
+              {annual && (
+                <div className="text-sm text-emerald-500 text-right mt-1">
+                  You save 20% with annual billing!
+                </div>
+              )}
+            </div>
+
+            <GlassButton
+              variant="gradient"
+              className="w-full glossy-button"
+              onClick={handleCheckout}
+              disabled={initializingPayment || !user}
+            >
+              {initializingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                `Pay with Paystack ${formatAmount(getAmount())} ${annual ? "/year" : "/month"}`
+              )}
+            </GlassButton>
+
+            <div className="mt-4 text-xs text-center text-muted-foreground">
+              By subscribing, you agree to our Terms of Service and Privacy Policy. You can cancel your subscription at any
+              time.
+            </div>
+          </Card3D>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             Need help?{" "}
