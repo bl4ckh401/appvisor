@@ -120,3 +120,32 @@ export async function generateContentWithGemini(prompt: string, imageBase64?: st
     }
   }
 }
+
+/**
+ * Generate an image using Google's Gemini model
+ */
+export async function generateImageWithGemini(
+  prompt: string,
+  aspectRatio: "1:1" | "4:3" | "3:4" | "16:9" | "9:16" = "1:1",
+  numberOfImages = 1,
+) {
+  try {
+    // For image generation, we'll use the Gemini model's image generation capabilities
+    const result = await generateContentWithGemini(prompt)
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to generate image with Gemini")
+    }
+
+    return {
+      success: true,
+      imageBytes: result.imageBytes,
+    }
+  } catch (error: any) {
+    console.error("Error generating image with Gemini:", error)
+    return {
+      success: false,
+      error: error.message || "Unknown error occurred",
+    }
+  }
+}

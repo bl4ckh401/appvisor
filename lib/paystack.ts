@@ -1,6 +1,3 @@
-// Import required dependencies
-import { createClient } from "@/lib/supabase/client"
-
 export interface PaystackConfig {
   publicKey: string
   email: string
@@ -35,6 +32,9 @@ export const initializePaystack = (config: PaystackConfig): Promise<string> => {
     }
   })
 }
+
+// Export initializePayment as an alias for initializePaystack for backward compatibility
+export const initializePayment = initializePaystack
 
 // Helper function to open Paystack popup
 const openPaystackPopup = (

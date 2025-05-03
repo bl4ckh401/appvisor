@@ -1,59 +1,45 @@
 "use client"
 
-import { ReactNode } from "react"
-import { GlassButton } from "@/components/ui/glass-button"
+import type { ReactNode } from "react"
 import { useFeatureAccess } from "@/hooks/use-feature-access"
-import { Badge } from "@/components/ui/badge"
-import { Sparkles } from "lucide-react"
+import { GlassButton } from "@/components/ui/glass-button"
+import type { planFeatures } from "@/lib/plan-restrictions"
 
 interface PremiumFeatureButtonProps {
-  feature: string
+  feature: keyof typeof planFeatures.free
   children: ReactNode
   onClick?: () => void
-  className?: string
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | "gradient"
-  size?: "default" | "sm" | "lg" | "icon"
+  className?: string
   disabled?: boolean
-  showBadge?: boolean
 }
 
 export function PremiumFeatureButton({
   feature,
   children,
   onClick,
-  className = "",
   variant = "default",
-  size = "default",
+  className = "",
   disabled = false,
-  showBadge = true,
 }: PremiumFeatureButtonProps) {
-  const { checkFeatureAccess, PremiumModal } = useFeatureAccess()
+  const { checkFeatureAccess, showPremiumFeature } = useFeatureAccess()
 
   const handleClick = () => {
-    const hasAccess = checkFeatureAccess(feature as any)
-    if (hasAccess && onClick) {
-      onClick()
+    // Check if user has access to this feature
+    const hasAccess = checkFeatureAccess(feature)
+
+    if (hasAccess) {
+      // If they have access, execute the onClick handler
+      if (onClick) onClick()
+    } else {
+      // If they don't have access, show the premium feature modal
+      showPremiumFeature(feature)
     }
   }
 
   return (
-    <>
-      <GlassButton
-        onClick={handleClick}
-        className={className}
-        variant={variant}
-        size={size}
-        disabled={disabled}
-      >
-        {children}
-        {showBadge && (
-          <Badge variant="outline" className="ml-2 bg-primary/10 text-primary text-xs px-1.5 py-0.5">
-            <Sparkles className="h-3 w-3 mr-1" />
-            PRO
-          </Badge>
-        )}
-      </GlassButton>
-      <PremiumModal />
-    </>
+    <GlassButton variant={variant} onClick={handleClick} className={className} disabled={disabled}>
+      {children}
+    </GlassButton>
   )
 }
