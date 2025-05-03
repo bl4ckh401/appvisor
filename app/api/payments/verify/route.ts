@@ -1,101 +1,197 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
-import { verifyPayment } from "@/lib/paystack"
+import { generateRequestId, createErrorResponse } from "@/lib/error-monitoring"
 
-export async function GET(request: NextRequest) {
+export async function POST(request: Request) {
+  const requestId = generateRequestId()
+  console.log(`[${new Date().toISOString()}] Received POST /api/payments/verify - RequestID: ${requestId}`)
+
+  // 1. Authentication check
+  const supabase = createRouteHandlerClient({ cookies })
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession()
+
+  if (sessionError || !session) {
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "verify",
+        errorMessage: "Unauthorized: Authentication required",
+        timestamp: new Date(),
+        requestId,
+      }),
+      { status: 401 },
+    )
+  }
+
+  const userId = session.user.id
+
+  // 2. Parse request body
+  let body
   try {
-    // Get reference from query params
-    const { searchParams } = new URL(request.url)
-    const reference = searchParams.get("reference")
+    body = await request.json()
+  } catch (e) {
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "verify",
+        errorMessage: "Invalid request format: Malformed JSON",
+        timestamp: new Date(),
+        requestId,
+        userId,
+        rawError: e,
+      }),
+      { status: 400 },
+    )
+  }
 
-    if (!reference) {
-      return NextResponse.json({ error: "Payment reference is required" }, { status: 400 })
+  const { reference } = body
+
+  if (!reference) {
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "verify",
+        errorMessage: "Payment reference is required",
+        timestamp: new Date(),
+        requestId,
+        userId,
+      }),
+      { status: 400 },
+    )
+  }
+
+  try {
+    // 3. Verify payment with Paystack
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
+
+    if (!paystackSecretKey) {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "verify",
+          errorMessage: "Paystack secret key is not configured",
+          timestamp: new Date(),
+          requestId,
+          userId,
+        }),
+        { status: 500 },
+      )
     }
 
-    // Get supabase client
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${paystackSecretKey}`,
+        "Content-Type": "application/json",
+      },
+    })
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const verifyData = await verifyResponse.json()
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!verifyResponse.ok || !verifyData.status) {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "verify",
+          errorMessage: "Payment verification failed",
+          timestamp: new Date(),
+          requestId,
+          userId,
+          rawError: verifyData,
+        }),
+        { status: 400 },
+      )
     }
 
-    // Verify payment with Paystack
-    const paymentData = await verifyPayment(reference)
+    // 4. Update user subscription in database
+    if (verifyData.data.status === "success") {
+      const metadata = verifyData.data.metadata || {}
+      const planDetails = verifyData.data.plan || {}
+      const planName = planDetails.name || ""
+      const isAnnual = metadata.is_annual === true
 
-    if (!paymentData || !paymentData.status || paymentData.status !== "success") {
-      return NextResponse.json({ error: "Payment verification failed" }, { status: 400 })
-    }
+      // Determine plan type from plan name
+      const planType = planName.toLowerCase().includes("pro")
+        ? "pro"
+        : planName.toLowerCase().includes("team")
+          ? "team"
+          : "free"
 
-    // Extract metadata
-    const metadata = paymentData.metadata || {}
-    const plan = metadata.plan || "pro"
-    const is_annual = metadata.is_annual === true
+      // Calculate expiration date (1 month or 1 year from now)
+      const expiresAt = new Date()
+      if (isAnnual) {
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+      } else {
+        expiresAt.setMonth(expiresAt.getMonth() + 1)
+      }
 
-    // Calculate subscription period
-    const now = new Date()
-    const periodEnd = new Date(now)
-    periodEnd.setMonth(periodEnd.getMonth() + (is_annual ? 12 : 1))
-
-    // Check if user already has an active subscription
-    const { data: existingSub } = await supabase
-      .from("user_subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single()
-
-    if (existingSub) {
-      // Update existing subscription
-      await supabase
-        .from("user_subscriptions")
-        .update({
-          plan,
-          is_annual,
-          current_period_start: now.toISOString(),
-          current_period_end: periodEnd.toISOString(),
-          payment_reference: reference,
-          updated_at: now.toISOString(),
-        })
-        .eq("id", existingSub.id)
-    } else {
-      // Create new subscription
-      await supabase.from("user_subscriptions").insert({
-        user_id: user.id,
-        plan,
+      // Update user subscription
+      const { error: updateError } = await supabase.from("user_subscriptions").upsert({
+        user_id: userId,
+        plan: planType,
         status: "active",
-        is_annual,
-        current_period_start: now.toISOString(),
-        current_period_end: periodEnd.toISOString(),
         payment_reference: reference,
+        expires_at: expiresAt.toISOString(),
+        payment_data: verifyData.data,
+        is_annual: isAnnual,
       })
+
+      if (updateError) {
+        console.error("Failed to update subscription:", updateError)
+        return NextResponse.json(
+          createErrorResponse({
+            apiName: "payments",
+            endpoint: "verify",
+            errorMessage: "Payment verified but failed to update subscription",
+            timestamp: new Date(),
+            requestId,
+            userId,
+            rawError: updateError,
+          }),
+          { status: 500 },
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Payment verified successfully",
+        data: {
+          plan: planType,
+          expiresAt: expiresAt.toISOString(),
+          isAnnual: isAnnual,
+        },
+      })
+    } else {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "verify",
+          errorMessage: `Payment failed with status: ${verifyData.data.status}`,
+          timestamp: new Date(),
+          requestId,
+          userId,
+          rawError: verifyData,
+        }),
+        { status: 400 },
+      )
     }
-
-    // Record payment
-    await supabase.from("payments").insert({
-      user_id: user.id,
-      amount: paymentData.amount / 100, // Convert from kobo to naira/dollars
-      status: "successful",
-      reference,
-      plan,
-      is_annual,
-    })
-
-    // Return success response
-    return NextResponse.json({
-      success: true,
-      plan,
-      is_annual,
-      reference,
-    })
   } catch (error) {
-    console.error("Error verifying payment:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Payment verification error:", error)
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "verify",
+        errorMessage: "An error occurred while verifying payment",
+        timestamp: new Date(),
+        requestId,
+        userId,
+        rawError: error,
+      }),
+      { status: 500 },
+    )
   }
 }

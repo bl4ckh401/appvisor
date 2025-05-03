@@ -1,95 +1,161 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
-import { generateImage } from "@/lib/openai"
-import { trackFeatureUsage } from "@/lib/usage-tracking"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // Get mockup details from request body
-    const { appName, appDescription, appType, colorScheme, style, deviceType = "mobile" } = await request.json()
-
-    if (!appName || !appDescription || !appType) {
-      return NextResponse.json({ error: "App name, description, and type are required" }, { status: 400 })
+    // Check if OpenAI API key is set
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "OpenAI API key is not configured. Please add the OPENAI_API_KEY environment variable." },
+        { status: 500 },
+      )
     }
 
-    // Get supabase client
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
-
-    // Get current user
+    // Verify authentication
+    const supabase = createRouteHandlerClient({ cookies })
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (!user) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Generate prompt for the app mockup
-    const prompt = generateAppMockupPrompt(appName, appDescription, appType, colorScheme, style, deviceType)
+    // Get request body
+    const body = await request.json()
+    console.log(
+      "Request body:",
+      JSON.stringify({
+        ...body,
+        screenshot: body.screenshot ? "SCREENSHOT_DATA_EXISTS" : "NO_SCREENSHOT",
+        prompt: body.prompt ? `${body.prompt.substring(0, 50)}...` : undefined,
+      }),
+    )
 
-    // Generate image
-    const imageUrl = await generateImage(prompt, "1024x1024", "vivid")
+    const { screenshot, caption, backgroundColor, style, prompt } = body
 
-    if (!imageUrl) {
-      return NextResponse.json({ error: "Failed to generate mockup" }, { status: 500 })
+    if (!screenshot) {
+      return NextResponse.json({ error: "Screenshot is required" }, { status: 400 })
     }
 
-    // Save mockup to database
-    const { data: mockup, error } = await supabase
-      .from("mockups")
-      .insert({
-        user_id: user.id,
-        name: appName,
-        description: appDescription,
-        app_type: appType,
-        color_scheme: colorScheme,
-        style,
-        device_type: deviceType,
-        image_url: imageUrl,
-        prompt,
+    if (!caption) {
+      return NextResponse.json({ error: "Caption is required" }, { status: 400 })
+    }
+
+    // In a production environment, we would process the screenshot here
+    // For now, we'll use OpenAI to generate a mockup based on the prompt
+
+    try {
+      console.log("Generating app mockup with DALL-E 2")
+
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) {
+        throw new Error("OPENAI_API_KEY environment variable is not set")
+      }
+
+      // Create a more detailed prompt that describes the app store style mockup
+      const detailedPrompt = `
+        Create a professional app store screenshot mockup with the following specifications:
+        
+        - Caption/Title: "${caption}"
+        - Background: ${style === "gradient" ? "Gradient" : "Solid"} style using ${backgroundColor} as the base color
+        - Style: Modern app store listing similar to Apple App Store or Google Play Store
+        - Layout: The screenshot should be centered with the caption at the top
+        - Text: Use clear, readable white text for the caption
+        - Overall look: Professional, polished app store marketing material
+        
+        The mockup should look similar to professional app store screenshots with a ${style === "gradient" ? "gradient" : "solid"} background and the app screenshot prominently displayed.
+      `
+
+      console.log("Sending prompt to OpenAI:", detailedPrompt.substring(0, 100) + "...")
+
+      // Direct API call using fetch
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "dall-e-2",
+          prompt: detailedPrompt.trim(),
+          n: 1,
+          size: "1024x1024",
+          response_format: "url",
+        }),
       })
-      .select()
-      .single()
 
-    if (error) {
-      console.error("Error saving mockup:", error)
-      return NextResponse.json({ error: "Failed to save mockup" }, { status: 500 })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("OpenAI API Error:", {
+          status: response.status,
+          statusText: response.statusText,
+          data: errorData,
+        })
+        throw new Error(`OpenAI API error: ${response.status} ${errorData.error?.message || response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log("OpenAI response received successfully")
+
+      // Store the generated image in Supabase storage
+      try {
+        const imageUrl = data.data[0].url
+        console.log("Fetching image from URL:", imageUrl ? "URL_EXISTS" : "NO_URL")
+
+        const imageResponse = await fetch(imageUrl)
+
+        if (!imageResponse.ok) {
+          console.error("Failed to fetch image from OpenAI URL:", {
+            status: imageResponse.status,
+            statusText: imageResponse.statusText,
+          })
+          return NextResponse.json({ error: "Failed to fetch generated image" }, { status: 500 })
+        }
+
+        const imageBlob = await imageResponse.blob()
+        console.log("Image blob size:", imageBlob.size)
+
+        const fileName = `generated-mockups/${session.user.id}/${Date.now()}.png`
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("assets")
+          .upload(fileName, imageBlob, {
+            contentType: "image/png",
+            upsert: false,
+          })
+
+        if (uploadError) {
+          console.error("Error uploading to Supabase:", uploadError)
+          // Still return the OpenAI URL if Supabase upload fails
+          return NextResponse.json({ url: imageUrl })
+        }
+
+        // Get public URL
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("assets").getPublicUrl(fileName)
+
+        console.log("Successfully uploaded and generated public URL")
+        return NextResponse.json({ url: publicUrl })
+      } catch (storageError) {
+        console.error("Error with storage:", storageError)
+        // Return the original URL if storage fails
+        return NextResponse.json({ url: data.data[0].url })
+      }
+    } catch (error) {
+      console.error("Error generating mockup with OpenAI:", error)
+      return NextResponse.json(
+        { error: "Failed to generate mockup: " + (error.message || "Unknown error") },
+        { status: 500 },
+      )
     }
-
-    // Track feature usage
-    await trackFeatureUsage("mockup_generation", 1)
-
-    // Return mockup data
-    return NextResponse.json({
-      mockup,
-      imageUrl,
-    })
   } catch (error) {
-    console.error("Error generating app mockup:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error in generate-app-mockup API:", error)
+    return NextResponse.json(
+      { error: "Failed to generate mockup. Please check server logs for details." },
+      { status: 500 },
+    )
   }
-}
-
-// Helper function to generate a prompt for the app mockup
-function generateAppMockupPrompt(
-  appName: string,
-  appDescription: string,
-  appType: string,
-  colorScheme: string,
-  style: string,
-  deviceType: string,
-): string {
-  let deviceFrame = ""
-
-  if (deviceType === "mobile") {
-    deviceFrame = "modern smartphone"
-  } else if (deviceType === "tablet") {
-    deviceFrame = "tablet device"
-  } else if (deviceType === "desktop") {
-    deviceFrame = "desktop monitor"
-  }
-
-  return `Create a professional ${style} app mockup for "${appName}", a ${appType} app, displayed on a ${deviceFrame}. The app should have a ${colorScheme} color scheme. The app's purpose is: ${appDescription}. The mockup should be photorealistic, high quality, and showcase the app's main screen with appropriate UI elements.`
 }

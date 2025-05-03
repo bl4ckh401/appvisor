@@ -1,146 +1,144 @@
 "use client"
 
-import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { GlassButton } from "@/components/ui/glass-button"
-import { planFeatures } from "@/lib/plan-restrictions"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sparkles, Star, Check } from "lucide-react"
 import Link from "next/link"
+import { Button3D } from "@/components/ui/button-3d"
+import { planFeatures } from "@/lib/plan-restrictions"
 
 interface PremiumFeaturesModalProps {
   isOpen: boolean
   onClose: () => void
-  feature: keyof typeof planFeatures.free
+  feature: string
   plan?: "pro" | "team"
 }
 
 export function PremiumFeaturesModal({ isOpen, onClose, feature, plan = "pro" }: PremiumFeaturesModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<"pro" | "team">(plan)
-
-  // Get feature name for display
-  const getFeatureName = () => {
-    const featureMap = {
-      mockupsPerMonth: "Monthly Mockups",
-      templates: "Templates",
-      exportFormats: "Export Formats",
-      bulkGeneration: "Bulk Generation",
-      teamMembers: "Team Members",
-      customBranding: "Custom Branding",
-      apiAccess: "API Access",
-      prioritySupport: "Priority Support",
-      whiteLabeling: "White Labeling",
-    }
-
-    return featureMap[feature] || feature
+  // Map feature keys to display information
+  const featureDetails = {
+    bulkGeneration: {
+      title: "Bulk Generation",
+      description: "Generate multiple mockups at once to save time and streamline your workflow.",
+      proLimit: `Up to ${planFeatures.pro.bulkGeneration} mockups at once`,
+      teamLimit: `Up to ${planFeatures.team.bulkGeneration} mockups at once`,
+    },
+    mockupsPerMonth: {
+      title: "Unlimited Mockups",
+      description: "Create as many mockups as you need without any monthly limits.",
+      proLimit: "Unlimited mockups",
+      teamLimit: "Unlimited mockups",
+    },
+    customBranding: {
+      title: "Custom Branding",
+      description: "Add your own branding elements to mockups for a consistent look and feel.",
+      proLimit: "Basic branding options",
+      teamLimit: "Advanced branding options",
+    },
+    teamMembers: {
+      title: "Team Collaboration",
+      description: "Work together with your team members on mockups and projects.",
+      proLimit: `${planFeatures.pro.teamMembers} team member`,
+      teamLimit: `Up to ${planFeatures.team.teamMembers} team members`,
+    },
+    apiAccess: {
+      title: "API Access",
+      description: "Integrate AppVisor with your own tools and workflows.",
+      proLimit: "Not available",
+      teamLimit: "Full API access",
+    },
+    exportFormats: {
+      title: "Advanced Export Formats",
+      description: "Export your mockups in multiple formats for different use cases.",
+      proLimit: planFeatures.pro.exportFormats.join(", "),
+      teamLimit: planFeatures.team.exportFormats.join(", "),
+    },
+    support: {
+      title: "Priority Support",
+      description: "Get faster response times and dedicated support for your questions.",
+      proLimit: "Priority support",
+      teamLimit: "Dedicated support team",
+    },
   }
 
-  // Get feature description
-  const getFeatureDescription = () => {
-    const descriptionMap = {
-      mockupsPerMonth: "Create more mockups each month with a premium plan.",
-      templates: "Access all premium templates for your app mockups.",
-      exportFormats: "Export your mockups in additional formats like SVG and PDF.",
-      bulkGeneration: "Generate multiple mockups at once to save time.",
-      teamMembers: "Add team members to collaborate on projects.",
-      customBranding: "Add your own branding to mockups and exports.",
-      apiAccess: "Access our API to integrate with your own tools.",
-      prioritySupport: "Get faster support from our team.",
-      whiteLabeling: "Remove AppVisor branding from your mockups.",
-    }
-
-    return descriptionMap[feature] || "Upgrade to access premium features."
+  // Get feature information or use default fallback
+  const details = featureDetails[feature] || {
+    title: "Premium Feature",
+    description: "This feature is available on our premium plans.",
+    proLimit: "Available",
+    teamLimit: "Available",
   }
-
-  // Get feature comparison
-  const getFeatureComparison = () => {
-    const free = planFeatures.free[feature]
-    const pro = planFeatures.pro[feature]
-    const team = planFeatures.team[feature]
-
-    return { free, pro, team }
-  }
-
-  // Format feature value for display
-  const formatFeatureValue = (value: any) => {
-    if (value === true) return "Yes"
-    if (value === false) return "No"
-    if (value === Number.POSITIVE_INFINITY) return "Unlimited"
-    if (Array.isArray(value)) return value.join(", ")
-    return value
-  }
-
-  const comparison = getFeatureComparison()
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Premium Feature</DialogTitle>
-          <DialogDescription>{getFeatureName()} is a premium feature. Upgrade to access it.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            {details.title}
+          </DialogTitle>
+          <DialogDescription>{details.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          <p className="mb-4">{getFeatureDescription()}</p>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="border rounded-lg p-4 relative">
+              <div className="absolute -top-3 left-3 bg-background px-2 text-sm font-medium text-primary flex items-center gap-1">
+                <Star className="h-3 w-3" />
+                Pro Plan
+              </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-4 py-2 border-b">
-              <div className="font-medium">Plan</div>
-              <div className="text-center">Free</div>
-              <div className="text-center">Pro</div>
-              <div className="text-center">Team</div>
+              <div className="mt-2 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-primary mt-0.5" />
+                  <span className="text-sm">{details.proLimit}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-primary mt-0.5" />
+                  <span className="text-sm">All basic features</span>
+                </div>
+              </div>
+
+              <div className="mt-4 text-lg font-bold">
+                $19<span className="text-sm font-normal text-muted-foreground">/month</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
-              <div className="font-medium">{getFeatureName()}</div>
-              <div className="text-center">{formatFeatureValue(comparison.free)}</div>
-              <div className="text-center font-medium">{formatFeatureValue(comparison.pro)}</div>
-              <div className="text-center font-medium">{formatFeatureValue(comparison.team)}</div>
-            </div>
+            <div className="border rounded-lg p-4 relative border-primary bg-primary/5">
+              <div className="absolute -top-3 left-3 bg-background px-2 text-sm font-medium text-primary flex items-center gap-1">
+                <Star className="h-3 w-3" />
+                <Star className="h-3 w-3" />
+                Team Plan
+              </div>
 
-            <div className="grid grid-cols-4 gap-4 pt-2 border-t">
-              <div></div>
-              <div className="text-center">
-                <span className="text-muted-foreground">Current</span>
+              <div className="mt-2 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-primary mt-0.5" />
+                  <span className="text-sm">{details.teamLimit}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-primary mt-0.5" />
+                  <span className="text-sm">Team collaboration</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-primary mt-0.5" />
+                  <span className="text-sm">API access</span>
+                </div>
               </div>
-              <div className="text-center">
-                <input
-                  type="radio"
-                  id="pro-plan"
-                  name="plan"
-                  checked={selectedPlan === "pro"}
-                  onChange={() => setSelectedPlan("pro")}
-                  className="mr-2"
-                />
-              </div>
-              <div className="text-center">
-                <input
-                  type="radio"
-                  id="team-plan"
-                  name="plan"
-                  checked={selectedPlan === "team"}
-                  onChange={() => setSelectedPlan("team")}
-                  className="mr-2"
-                />
+
+              <div className="mt-4 text-lg font-bold">
+                $49<span className="text-sm font-normal text-muted-foreground">/month</span>
               </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <GlassButton variant="outline" onClick={onClose}>
-            Cancel
-          </GlassButton>
-          <GlassButton asChild>
-            <Link href={`/subscribe?plan=${selectedPlan}`}>
-              Upgrade to {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
-            </Link>
-          </GlassButton>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <Button3D variant="outline" onClick={onClose} className="sm:w-auto w-full">
+            Maybe Later
+          </Button3D>
+          <Button3D variant="gradient" asChild className="sm:w-auto w-full">
+            <Link href={`/subscribe?plan=${plan}`}>Upgrade Now</Link>
+          </Button3D>
         </DialogFooter>
       </DialogContent>
     </Dialog>

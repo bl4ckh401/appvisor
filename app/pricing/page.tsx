@@ -35,9 +35,7 @@ export default function PricingPage() {
     const checkAuth = async () => {
       try {
         setLoading(true)
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+        const { data: { user } } = await supabase.auth.getUser()
         setUser(user)
 
         if (user) {
@@ -91,7 +89,7 @@ export default function PricingPage() {
 
     // If user is not logged in, redirect to auth with plan parameter
     if (!user) {
-      router.push(`/auth?redirect=/subscribe?plan=${plan}${annual ? "&billing=annual" : ""}`)
+      router.push(`/auth?redirect=/subscribe?plan=${plan}${annual ? '&billing=annual' : ''}`)
       return
     }
 
@@ -106,7 +104,7 @@ export default function PricingPage() {
     }
 
     // Redirect to subscription page with plan parameter
-    router.push(`/subscribe?plan=${plan}${annual ? "&billing=annual" : ""}`)
+    router.push(`/subscribe?plan=${plan}${annual ? '&billing=annual' : ''}`)
   }
 
   // Get price for plan
@@ -140,7 +138,9 @@ export default function PricingPage() {
                   Simple Pricing
                 </motion.div>
 
-                <h1 className="text-3xl md:text-4xl font-bold">Choose the Perfect Plan for Your Needs</h1>
+                <h1 className="text-3xl md:text-4xl font-bold">
+                  Choose the Perfect Plan for Your Needs
+                </h1>
 
                 <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   All plans include a 14-day free trial with no credit card required.
@@ -185,7 +185,7 @@ export default function PricingPage() {
                   `${planFeatures.free.mockupsPerMonth} mockups per month`,
                   "Basic templates",
                   `${planFeatures.free.exportFormats.join(", ")} export formats`,
-                  "Community support",
+                  "Community support"
                 ]}
                 buttonText={isCurrentPlan("free") ? "Current Plan" : "Get Started"}
                 buttonVariant="outline"
@@ -201,13 +201,19 @@ export default function PricingPage() {
                 description="Everything you need for regular use"
                 features={[
                   "Unlimited mockups",
-                  "All templates",
+                  "All templates", 
                   `All export formats (${planFeatures.pro.exportFormats.length})`,
                   `Bulk generation (up to ${planFeatures.pro.bulkGeneration})`,
                   "Custom branding",
-                  "Priority support",
+                  "Priority support"
                 ]}
-                buttonText={isCurrentPlan("pro") ? "Current Plan" : loading ? "Loading..." : "Start Free Trial"}
+                buttonText={
+                  isCurrentPlan("pro") 
+                    ? "Current Plan" 
+                    : loading 
+                      ? "Loading..." 
+                      : "Start Free Trial"
+                }
                 buttonVariant="gradient"
                 highlighted={true}
                 onSelect={() => handleSelectPlan("pro")}
@@ -226,9 +232,15 @@ export default function PricingPage() {
                   `Bulk generation (up to ${planFeatures.team.bulkGeneration})`,
                   "API access",
                   "Dedicated support",
-                  "White labeling",
+                  "White labeling"
                 ]}
-                buttonText={isCurrentPlan("team") ? "Current Plan" : loading ? "Loading..." : "Start Free Trial"}
+                buttonText={
+                  isCurrentPlan("team") 
+                    ? "Current Plan" 
+                    : loading 
+                      ? "Loading..." 
+                      : "Start Free Trial"
+                }
                 buttonVariant="outline"
                 onSelect={() => handleSelectPlan("team")}
                 current={isCurrentPlan("team")}
@@ -287,7 +299,7 @@ export default function PricingPage() {
                   Join thousands of developers and designers who are creating stunning app store listings with AppVisor.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
+                  <button 
                     onClick={() => handleSelectPlan("pro")}
                     className="px-6 py-3 bg-white text-purple-600 rounded-md font-medium flex items-center justify-center hover:bg-white/90 transition-all"
                   >
@@ -338,17 +350,17 @@ function FeatureTooltip({ content }) {
 }
 
 // Pricing card component
-function PricingCard({
-  title,
-  price,
-  period = "",
-  description,
-  features,
-  buttonText,
+function PricingCard({ 
+  title, 
+  price, 
+  period = "", 
+  description, 
+  features, 
+  buttonText, 
   buttonVariant,
   highlighted = false,
   onSelect,
-  current = false,
+  current = false
 }) {
   return (
     <motion.div
@@ -357,14 +369,18 @@ function PricingCard({
         animate: { opacity: 1, y: 0 },
       }}
     >
-      <div
+      <div 
         className={`p-6 h-full rounded-lg overflow-hidden shadow-sm ${
-          highlighted ? "border-2 border-primary bg-primary/5" : "border border-border bg-background"
+          highlighted 
+            ? "border-2 border-primary bg-primary/5" 
+            : "border border-border bg-background"
         } ${current ? "ring-2 ring-primary" : ""}`}
       >
         {highlighted && (
           <div className="absolute -top-4 right-4 z-10">
-            <div className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">Popular</div>
+            <div className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+              Popular
+            </div>
           </div>
         )}
 
@@ -389,8 +405,8 @@ function PricingCard({
         <div className="mt-6">
           <button
             className={`w-full py-2 rounded-md font-medium flex items-center justify-center transition-all ${
-              buttonVariant === "gradient"
-                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90"
+              buttonVariant === "gradient" 
+                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90" 
                 : buttonVariant === "outline"
                   ? "bg-background border border-border hover:bg-muted/30"
                   : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -410,12 +426,12 @@ function PricingCard({
 
 // FAQ item component
 function FaqItem({ question, answer }) {
-  const [isOpen, setIsOpen] = useState(false)
-
+  const [isOpen, setIsOpen] = useState(false);
+  
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
       transition={{ duration: 0.5 }}
       className="rounded-lg border border-border overflow-hidden"
     >
@@ -424,9 +440,9 @@ function FaqItem({ question, answer }) {
         onClick={() => setIsOpen(!isOpen)}
       >
         {question}
-        <ChevronRight className={`h-5 w-5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+        <ChevronRight className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
       </button>
-
+      
       {isOpen && (
         <div className="px-5 py-4 border-t border-border bg-muted/10">
           <p className="text-muted-foreground">{answer}</p>

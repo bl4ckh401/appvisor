@@ -1,36 +1,37 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import { GlassCard } from "@/components/ui/glass-card"
-import { GlassButton } from "@/components/ui/glass-button"
 import Link from "next/link"
-import { Loader2, Save, ArrowLeft } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { GlassButton } from "@/components/ui/glass-button"
+import { GlassCard } from "@/components/ui/glass-card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowLeft, Save, Trash2, Loader2, AlertTriangle } from "lucide-react"
 
 export default function ProjectSettingsPage() {
   const params = useParams()
   const router = useRouter()
-  const [project, setProject] = useState(null)
+  const projectId = params.id as string
+  const [project, setProject] = useState<any>(null)
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    app_name: "",
-    app_category: "",
-    platform: "ios",
-  })
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
-  // Fetch project
   useEffect(() => {
-    const fetchProject = async () => {
+    const fetchProjectData = async () => {
       try {
         setLoading(true)
-        const projectId = params.id
 
-        // Get current user
+        // Check authentication
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -40,256 +41,200 @@ export default function ProjectSettingsPage() {
           return
         }
 
-        // Fetch project
+        // Fetch project details
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
           .select("*")
           .eq("id", projectId)
-          .eq("user_id", user.id)
           .single()
 
-        if (projectError || !projectData) {
-          console.error("Error fetching project:", projectError)
-          router.push("/dashboard")
-          return
+        if (projectError) throw projectError
+
+        // Verify project belongs to user
+        if (projectData.user_id !== user.id) {
+          throw new Error("You don't have permission to edit this project")
         }
 
         setProject(projectData)
-        setFormData({
-          name: projectData.name || "",
-          description: projectData.description || "",
-          app_name: projectData.app_name || "",
-          app_category: projectData.app_category || "",
-          platform: projectData.platform || "ios",
-        })
-      } catch (error) {
-        console.error("Error fetching project data:", error)
+        setName(projectData.name)
+        setDescription(projectData.description || "")
+      } catch (err) {
+        console.error("Error fetching project:", err)
+        setError(err.message || "Failed to load project")
       } finally {
         setLoading(false)
       }
     }
 
-    if (params.id) {
-      fetchProject()
-    }
-  }, [params.id, router, supabase])
+    fetchProjectData()
+  }, [projectId, router, supabase])
 
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
+  const updateProject = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!project) return
 
     try {
       setSaving(true)
+      setError(null)
 
-      // Update project
       const { error } = await supabase
         .from("projects")
         .update({
-          name: formData.name,
-          description: formData.description,
-          app_name: formData.app_name,
-          app_category: formData.app_category,
-          platform: formData.platform,
+          name,
+          description,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", project.id)
+        .eq("id", projectId)
 
-      if (error) {
-        console.error("Error updating project:", error)
-        return
-      }
+      if (error) throw error
 
-      // Redirect to project page
-      router.push(`/projects/${project.id}`)
-    } catch (error) {
-      console.error("Error saving project:", error)
+      alert("Project updated successfully!")
+    } catch (err) {
+      console.error("Error updating project:", err)
+      setError(err.message || "Failed to update project")
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="container py-8">
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-          <p>Loading project settings...</p>
-        </div>
-      </div>
-    )
+  const deleteProject = async () => {
+    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      // Delete all mockups associated with this project
+      const { error: mockupsError } = await supabase.from("mockups").delete().eq("project_id", projectId)
+
+      if (mockupsError) throw mockupsError
+
+      // Delete the project
+      const { error: projectError } = await supabase.from("projects").delete().eq("id", projectId)
+
+      if (projectError) throw projectError
+
+      router.push("/dashboard")
+    } catch (err) {
+      console.error("Error deleting project:", err)
+      setError(err.message || "Failed to delete project")
+      setLoading(false)
+    }
   }
 
-  if (!project) {
+  if (loading) {
     return (
-      <div className="container py-8">
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-4">Project Not Found</h2>
-          <p className="text-muted-foreground mb-6">
-            The project you're looking for doesn't exist or you don't have access to it.
-          </p>
-          <GlassButton asChild>
-            <Link href="/dashboard">Back to Dashboard</Link>
-          </GlassButton>
-        </div>
+      <div className="container py-10 flex items-center justify-center">
+        <GlassCard className="p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p>Loading project settings...</p>
+        </GlassCard>
       </div>
     )
   }
 
   return (
-    <div className="container py-8">
-      <div className="flex items-center mb-6">
+    <div className="container py-10">
+      <div className="mb-8">
         <Link
-          href={`/projects/${project.id}`}
-          className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          href={`/projects/${projectId}`}
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Project
         </Link>
       </div>
 
       <h1 className="text-3xl font-bold mb-8">Project Settings</h1>
 
-      <GlassCard className="p-6">
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">
-                Project Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-border rounded-md bg-background"
-              />
-            </div>
+      <div className="max-w-2xl">
+        <Tabs defaultValue="general">
+          <TabsList className="bg-background/40 backdrop-blur-md mb-6">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="danger">Danger Zone</TabsTrigger>
+          </TabsList>
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium mb-1">
-                Project Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="app_name" className="block text-sm font-medium mb-1">
-                App Name
-              </label>
-              <input
-                type="text"
-                id="app_name"
-                name="app_name"
-                value={formData.app_name}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="app_category" className="block text-sm font-medium mb-1">
-                App Category
-              </label>
-              <select
-                id="app_category"
-                name="app_category"
-                value={formData.app_category}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background"
-              >
-                <option value="">Select a category</option>
-                <option value="Business">Business</option>
-                <option value="Education">Education</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Finance">Finance</option>
-                <option value="Games">Games</option>
-                <option value="Health & Fitness">Health & Fitness</option>
-                <option value="Lifestyle">Lifestyle</option>
-                <option value="Music">Music</option>
-                <option value="Navigation">Navigation</option>
-                <option value="Productivity">Productivity</option>
-                <option value="Social Networking">Social Networking</option>
-                <option value="Utilities">Utilities</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Platform</label>
-              <div className="flex gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="platform"
-                    value="ios"
-                    checked={formData.platform === "ios"}
-                    onChange={handleChange}
-                    className="mr-2"
+          <TabsContent value="general">
+            <GlassCard className="p-6">
+              <form onSubmit={updateProject} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Project Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="My Awesome App"
+                    required
+                    className="bg-background/30 backdrop-blur-sm border-border/40"
                   />
-                  iOS
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="platform"
-                    value="android"
-                    checked={formData.platform === "android"}
-                    onChange={handleChange}
-                    className="mr-2"
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="A brief description of your project"
+                    rows={4}
+                    className="bg-background/30 backdrop-blur-sm border-border/40"
                   />
-                  Android
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="platform"
-                    value="both"
-                    checked={formData.platform === "both"}
-                    onChange={handleChange}
-                    className="mr-2"
-                  />
-                  Both
-                </label>
+                </div>
+
+                {error && <div className="p-3 rounded-md bg-destructive/10 text-destructive">{error}</div>}
+
+                <div className="flex justify-end">
+                  <GlassButton type="submit" disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </GlassButton>
+                </div>
+              </form>
+            </GlassCard>
+          </TabsContent>
+
+          <TabsContent value="danger">
+            <GlassCard className="p-6 border-destructive/20">
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <AlertTriangle className="h-6 w-6 text-destructive flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="text-lg font-bold text-destructive">Delete Project</h3>
+                    <p className="text-muted-foreground">
+                      This action cannot be undone. This will permanently delete the project and all associated mockups.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <GlassButton variant="destructive" onClick={deleteProject} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Project
+                      </>
+                    )}
+                  </GlassButton>
+                </div>
               </div>
-            </div>
-
-            <div className="flex justify-end">
-              <GlassButton type="submit" disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
-              </GlassButton>
-            </div>
-          </div>
-        </form>
-      </GlassCard>
+            </GlassCard>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }

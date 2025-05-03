@@ -1,102 +1,85 @@
-// Initialize Paystack payment
-export async function initializePaystack(data: {
+// Import required dependencies
+import { createClient } from "@/lib/supabase/client"
+
+export interface PaystackConfig {
+  publicKey: string
   email: string
-  amount: number
+  amount: number // in cents for USD
+  currency?: string
   plan?: string
+  metadata?: Record<string, any>
   callback_url?: string
-  metadata?: any
-}) {
+}
+
+// Initialize Paystack checkout
+export const initializePaystack = (config: PaystackConfig): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    // Use inline embed approach as recommended by Paystack docs
+    if (window.PaystackPop) {
+      openPaystackPopup(config, resolve, reject)
+    } else {
+      // Load Paystack script dynamically if not already loaded
+      const script = document.createElement("script")
+      script.src = "https://js.paystack.co/v1/inline.js"
+      script.async = true
+
+      script.onload = () => {
+        openPaystackPopup(config, resolve, reject)
+      }
+
+      script.onerror = () => {
+        reject(new Error("Could not load Paystack script"))
+      }
+
+      document.body.appendChild(script)
+    }
+  })
+}
+
+// Helper function to open Paystack popup
+const openPaystackPopup = (
+  config: PaystackConfig,
+  resolve: (value: string) => void,
+  reject: (reason: Error) => void,
+) => {
+  const handler = window.PaystackPop.setup({
+    key: config.publicKey,
+    email: config.email,
+    amount: config.amount, // Paystack expects amount in lowest currency unit (cents for USD)
+    currency: config.currency || "USD",
+    plan: config.plan,
+    metadata: config.metadata || {},
+    callback_url: config.callback_url,
+    onClose: () => {
+      reject(new Error("Payment window closed"))
+    },
+    callback: (response: any) => {
+      resolve(response.reference)
+    },
+  })
+
+  handler.openIframe()
+}
+
+// Verify payment on the server
+export const verifyPayment = async (reference: string): Promise<any> => {
   try {
-    const response = await fetch("/api/payments/initialize", {
+    const response = await fetch(`/api/payments/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ reference }),
     })
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to initialize payment")
+      throw new Error(errorData.error || "Payment verification failed")
     }
 
-    const responseData = await response.json()
-    return responseData
+    return await response.json()
   } catch (error) {
-    console.error("Error initializing payment:", error)
-    throw error
-  }
-}
-
-// Alias for initializePaystack to maintain compatibility
-export const initializePayment = initializePaystack
-
-// Verify Paystack payment
-export async function verifyPayment(reference: string) {
-  try {
-    const response = await fetch(`/api/payments/verify?reference=${reference}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to verify payment")
-    }
-
-    const responseData = await response.json()
-    return responseData
-  } catch (error) {
-    console.error("Error verifying payment:", error)
-    throw error
-  }
-}
-
-// Get Paystack plans
-export async function getPlans() {
-  try {
-    const response = await fetch("/api/payments/plans", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to fetch plans")
-    }
-
-    const responseData = await response.json()
-    return responseData
-  } catch (error) {
-    console.error("Error fetching plans:", error)
-    throw error
-  }
-}
-
-// Cancel subscription
-export async function cancelSubscription(subscriptionId: string) {
-  try {
-    const response = await fetch("/api/payments/cancel", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ subscription_id: subscriptionId }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to cancel subscription")
-    }
-
-    const responseData = await response.json()
-    return responseData
-  } catch (error) {
-    console.error("Error canceling subscription:", error)
+    console.error("Payment verification error:", error)
     throw error
   }
 }

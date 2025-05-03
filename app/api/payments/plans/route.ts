@@ -1,69 +1,64 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
-import { planFeatures } from "@/lib/plan-restrictions-server"
+import { NextResponse } from "next/server"
+import { generateRequestId, createErrorResponse } from "@/lib/error-monitoring"
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
+  const requestId = generateRequestId()
+  console.log(`[${new Date().toISOString()}] Received GET /api/payments/plans - RequestID: ${requestId}`)
+
   try {
-    // Get supabase client
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    // Fetch plans from Paystack
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!paystackSecretKey) {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "plans",
+          errorMessage: "Paystack secret key is not configured",
+          timestamp: new Date(),
+          requestId,
+        }),
+        { status: 500 },
+      )
     }
 
-    // Get user's current subscription
-    const { data: subscription } = await supabase
-      .from("user_subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single()
-
-    // Format plan details
-    const plans = {
-      free: {
-        name: "Free",
-        price: {
-          monthly: 0,
-          annual: 0,
-        },
-        features: planFeatures.free,
+    const response = await fetch("https://api.paystack.co/plan", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${paystackSecretKey}`,
+        "Content-Type": "application/json",
       },
-      pro: {
-        name: "Pro",
-        price: {
-          monthly: 19,
-          annual: 15 * 12, // $15/month billed annually
-        },
-        features: planFeatures.pro,
-      },
-      team: {
-        name: "Team",
-        price: {
-          monthly: 49,
-          annual: 39 * 12, // $39/month billed annually
-        },
-        features: planFeatures.team,
-      },
-    }
-
-    // Add current plan info
-    const currentPlan = subscription?.plan || "free"
-
-    return NextResponse.json({
-      plans,
-      currentPlan,
-      subscription: subscription || null,
     })
+
+    const data = await response.json()
+
+    if (!response.ok || !data.status) {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "plans",
+          errorMessage: data.message || "Failed to fetch plans",
+          timestamp: new Date(),
+          requestId,
+          rawError: data,
+        }),
+        { status: 400 },
+      )
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error fetching plans:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "plans",
+        errorMessage: "An error occurred while fetching plans",
+        timestamp: new Date(),
+        requestId,
+        rawError: error,
+      }),
+      { status: 500 },
+    )
   }
 }

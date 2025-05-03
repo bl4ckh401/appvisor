@@ -1,45 +1,59 @@
 "use client"
 
-import type { ReactNode } from "react"
-import { useFeatureAccess } from "@/hooks/use-feature-access"
+import { ReactNode } from "react"
 import { GlassButton } from "@/components/ui/glass-button"
-import type { planFeatures } from "@/lib/plan-restrictions"
+import { useFeatureAccess } from "@/hooks/use-feature-access"
+import { Badge } from "@/components/ui/badge"
+import { Sparkles } from "lucide-react"
 
 interface PremiumFeatureButtonProps {
-  feature: keyof typeof planFeatures.free
+  feature: string
   children: ReactNode
   onClick?: () => void
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | "gradient"
   className?: string
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | "gradient"
+  size?: "default" | "sm" | "lg" | "icon"
   disabled?: boolean
+  showBadge?: boolean
 }
 
 export function PremiumFeatureButton({
   feature,
   children,
   onClick,
-  variant = "default",
   className = "",
+  variant = "default",
+  size = "default",
   disabled = false,
+  showBadge = true,
 }: PremiumFeatureButtonProps) {
-  const { checkFeatureAccess, showPremiumFeature } = useFeatureAccess()
+  const { checkFeatureAccess, PremiumModal } = useFeatureAccess()
 
   const handleClick = () => {
-    // Check if user has access to this feature
-    const hasAccess = checkFeatureAccess(feature)
-
-    if (hasAccess) {
-      // If they have access, execute the onClick handler
-      if (onClick) onClick()
-    } else {
-      // If they don't have access, show the premium feature modal
-      showPremiumFeature(feature)
+    const hasAccess = checkFeatureAccess(feature as any)
+    if (hasAccess && onClick) {
+      onClick()
     }
   }
 
   return (
-    <GlassButton variant={variant} onClick={handleClick} className={className} disabled={disabled}>
-      {children}
-    </GlassButton>
+    <>
+      <GlassButton
+        onClick={handleClick}
+        className={className}
+        variant={variant}
+        size={size}
+        disabled={disabled}
+      >
+        {children}
+        {showBadge && (
+          <Badge variant="outline" className="ml-2 bg-primary/10 text-primary text-xs px-1.5 py-0.5">
+            <Sparkles className="h-3 w-3 mr-1" />
+            PRO
+          </Badge>
+        )}
+      </GlassButton>
+      <PremiumModal />
+    </>
   )
 }

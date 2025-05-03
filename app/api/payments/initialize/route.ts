@@ -1,98 +1,138 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
-import { initializePayment } from "@/lib/paystack"
+import { generateRequestId, createErrorResponse } from "@/lib/error-monitoring"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
+  const requestId = generateRequestId()
+  console.log(`[${new Date().toISOString()}] Received POST /api/payments/initialize - RequestID: ${requestId}`)
+
+  // 1. Authentication check
+  const supabase = createRouteHandlerClient({ cookies })
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession()
+
+  if (sessionError || !session) {
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "initialize",
+        errorMessage: "Unauthorized: Authentication required",
+        timestamp: new Date(),
+        requestId,
+      }),
+      { status: 401 },
+    )
+  }
+
+  const userId = session.user.id
+
+  // 2. Parse request body
+  let body
   try {
-    // Get request body
-    const { plan, is_annual, callback_url } = await request.json()
+    body = await request.json()
+  } catch (e) {
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "initialize",
+        errorMessage: "Invalid request format: Malformed JSON",
+        timestamp: new Date(),
+        requestId,
+        userId,
+        rawError: e,
+      }),
+      { status: 400 },
+    )
+  }
 
-    if (!plan || !callback_url) {
-      return NextResponse.json({ error: "Plan and callback URL are required" }, { status: 400 })
+  const { email, plan, metadata = {} } = body
+
+  if (!email || !plan) {
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "initialize",
+        errorMessage: "Email and plan are required",
+        timestamp: new Date(),
+        requestId,
+        userId,
+      }),
+      { status: 400 },
+    )
+  }
+
+  try {
+    // 3. Initialize transaction with Paystack
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
+
+    if (!paystackSecretKey) {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "initialize",
+          errorMessage: "Paystack secret key is not configured",
+          timestamp: new Date(),
+          requestId,
+          userId,
+        }),
+        { status: 500 },
+      )
     }
 
-    // Get supabase client
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
-
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Add user_id to metadata
+    const enhancedMetadata = {
+      ...metadata,
+      user_id: userId,
     }
 
-    // Get user profile for email
-    const { data: profile } = await supabase.from("profiles").select("email, full_name").eq("id", user.id).single()
-
-    const email = profile?.email || user.email
-    const name = profile?.full_name || email
-
-    // Initialize payment with Paystack
-    const paymentData = await initializePayment({
-      email,
-      amount: getPlanAmount(plan, is_annual),
-      plan: getPlanCode(plan, is_annual),
-      callback_url,
-      metadata: {
-        user_id: user.id,
-        plan,
-        is_annual: is_annual ? true : false,
+    const response = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${paystackSecretKey}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        email,
+        plan,
+        metadata: enhancedMetadata,
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/subscribe/success`,
+      }),
     })
 
-    if (!paymentData || !paymentData.authorization_url) {
-      return NextResponse.json({ error: "Failed to initialize payment" }, { status: 500 })
+    const data = await response.json()
+
+    if (!response.ok || !data.status) {
+      return NextResponse.json(
+        createErrorResponse({
+          apiName: "payments",
+          endpoint: "initialize",
+          errorMessage: data.message || "Failed to initialize payment",
+          timestamp: new Date(),
+          requestId,
+          userId,
+          rawError: data,
+        }),
+        { status: 400 },
+      )
     }
 
-    // Return payment URL and reference
-    return NextResponse.json({
-      authorization_url: paymentData.authorization_url,
-      reference: paymentData.reference,
-    })
+    return NextResponse.json(data)
   } catch (error) {
-    console.error("Error initializing payment:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Payment initialization error:", error)
+    return NextResponse.json(
+      createErrorResponse({
+        apiName: "payments",
+        endpoint: "initialize",
+        errorMessage: "An error occurred while initializing payment",
+        timestamp: new Date(),
+        requestId,
+        userId,
+        rawError: error,
+      }),
+      { status: 500 },
+    )
   }
-}
-
-// Helper function to get plan amount in kobo (Paystack uses kobo)
-function getPlanAmount(plan: string, is_annual: boolean): number {
-  const prices = {
-    pro: {
-      monthly: 1900, // $19
-      annual: 15000, // $150 ($12.50/month)
-    },
-    team: {
-      monthly: 4900, // $49
-      annual: 39000, // $390 ($32.50/month)
-    },
-  }
-
-  const planPrices = prices[plan] || prices.pro
-  const amount = is_annual ? planPrices.annual : planPrices.monthly
-
-  // Convert to kobo (multiply by 100)
-  return amount * 100
-}
-
-// Helper function to get Paystack plan code
-function getPlanCode(plan: string, is_annual: boolean): string {
-  // These would be your actual Paystack plan codes
-  const planCodes = {
-    pro: {
-      monthly: process.env.NEXT_PUBLIC_PAYSTACK_PRO_MONTHLY_PLAN,
-      annual: process.env.NEXT_PUBLIC_PAYSTACK_PRO_ANNUAL_PLAN,
-    },
-    team: {
-      monthly: process.env.NEXT_PUBLIC_PAYSTACK_TEAM_MONTHLY_PLAN,
-      annual: process.env.NEXT_PUBLIC_PAYSTACK_TEAM_ANNUAL_PLAN,
-    },
-  }
-
-  const codes = planCodes[plan] || planCodes.pro
-  return is_annual ? codes.annual : codes.monthly
 }
