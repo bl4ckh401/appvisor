@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
+import {GlassCard} from "@/components/ui/glass-card"
 
 interface AIImageGeneratorProps {
   onImageGenerated: (imageUrl: string) => void
@@ -50,6 +51,7 @@ export function AIImageGenerator({ onImageGenerated }: AIImageGeneratorProps) {
   const [showPromptIdeas, setShowPromptIdeas] = useState(false)
   const [usageStats, setUsageStats] = useState<{ current: number, limit: number | string }>({ current: 0, limit: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
+
   const { toast } = useToast()
   const { subscription, checkFeatureAccess, getFeatureLimit, getRemaining, PremiumModal } = useFeatureAccess()
 
