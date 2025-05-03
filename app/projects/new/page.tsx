@@ -1,115 +1,222 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { GlassButton } from "@/components/ui/glass-button"
 import { GlassCard } from "@/components/ui/glass-card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft } from "lucide-react"
+import { GlassButton } from "@/components/ui/glass-button"
 import Link from "next/link"
+import { Loader2, ArrowLeft } from "lucide-react"
 
 export default function NewProjectPage() {
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    app_name: "",
+    app_category: "",
+    platform: "ios",
+  })
   const supabase = createClient()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle form input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser()
+      setLoading(true)
 
-      if (userError) {
-        throw new Error("You must be logged in to create a project")
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push("/auth")
+        return
       }
 
+      // Create project
       const { data, error } = await supabase
         .from("projects")
-        .insert([
-          {
-            name,
-            description,
-            user_id: userData.user.id,
-          },
-        ])
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          app_name: formData.app_name,
+          app_category: formData.app_category,
+          platform: formData.platform,
+          user_id: user.id,
+        })
         .select()
 
       if (error) {
-        throw new Error(error.message)
+        console.error("Error creating project:", error)
+        return
       }
 
-      router.push("/dashboard")
-    } catch (err) {
-      setError(err.message)
+      // Redirect to project page
+      router.push(`/projects/${data[0].id}`)
+    } catch (error) {
+      console.error("Error creating project:", error)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="container py-10">
-      <div className="mb-8">
+    <div className="container py-8">
+      <div className="flex items-center mb-6">
         <Link
           href="/dashboard"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Link>
       </div>
 
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Create New Project</h1>
+      <h1 className="text-3xl font-bold mb-8">Create New Project</h1>
 
-        <GlassCard className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Project Name</Label>
-              <Input
+      <GlassCard className="p-6 max-w-2xl mx-auto">
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium mb-1">
+                Project Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Awesome App"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
                 required
-                className="bg-background/30 backdrop-blur-sm border-border/40"
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                placeholder="My Awesome App"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium mb-1">
+                Project Description
+              </label>
+              <textarea
                 id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={3}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
                 placeholder="A brief description of your project"
-                rows={4}
-                className="bg-background/30 backdrop-blur-sm border-border/40"
               />
             </div>
 
-            {error && <div className="p-3 rounded-md bg-destructive/10 text-destructive">{error}</div>}
+            <div>
+              <label htmlFor="app_name" className="block text-sm font-medium mb-1">
+                App Name
+              </label>
+              <input
+                type="text"
+                id="app_name"
+                name="app_name"
+                value={formData.app_name}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                placeholder="The name of your app"
+              />
+            </div>
 
-            <div className="flex justify-end space-x-4">
-              <GlassButton variant="outline" type="button" asChild>
-                <Link href="/dashboard">Cancel</Link>
-              </GlassButton>
+            <div>
+              <label htmlFor="app_category" className="block text-sm font-medium mb-1">
+                App Category
+              </label>
+              <select
+                id="app_category"
+                name="app_category"
+                value={formData.app_category}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+              >
+                <option value="">Select a category</option>
+                <option value="Business">Business</option>
+                <option value="Education">Education</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Finance">Finance</option>
+                <option value="Games">Games</option>
+                <option value="Health & Fitness">Health & Fitness</option>
+                <option value="Lifestyle">Lifestyle</option>
+                <option value="Music">Music</option>
+                <option value="Navigation">Navigation</option>
+                <option value="Productivity">Productivity</option>
+                <option value="Social Networking">Social Networking</option>
+                <option value="Utilities">Utilities</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Platform</label>
+              <div className="flex gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="platform"
+                    value="ios"
+                    checked={formData.platform === "ios"}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  iOS
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="platform"
+                    value="android"
+                    checked={formData.platform === "android"}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  Android
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="platform"
+                    value="both"
+                    checked={formData.platform === "both"}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  Both
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
               <GlassButton type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create Project"}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Project"
+                )}
               </GlassButton>
             </div>
-          </form>
-        </GlassCard>
-      </div>
+          </div>
+        </form>
+      </GlassCard>
     </div>
   )
 }

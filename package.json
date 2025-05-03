@@ -64,7 +64,7 @@
     "framer-motion": "latest",
     "html2canvas": "latest",
     "three": "latest",
-    "@google/genai": "latest"
+    "@google/generative-ai": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

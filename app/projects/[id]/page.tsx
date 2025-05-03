@@ -2,30 +2,29 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { GlassButton } from "@/components/ui/glass-button"
-import { GlassCard } from "@/components/ui/glass-card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { motion } from "framer-motion"
-import { ArrowLeft, Plus, Smartphone, Pencil, Trash2, Loader2, Settings, Download, Users } from "lucide-react"
+import { Card3D } from "@/components/ui/card-3d"
+import Link from "next/link"
+import { Loader2, Plus, Settings, Trash2, ArrowLeft, ImageIcon } from "lucide-react"
 
-export default function ProjectDetailPage() {
+export default function ProjectPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.id as string
-  const [project, setProject] = useState<any>(null)
-  const [mockups, setMockups] = useState<any[]>([])
+  const [project, setProject] = useState(null)
+  const [mockups, setMockups] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
 
+  // Fetch project and mockups
   useEffect(() => {
-    const fetchProjectData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
+        const projectId = params.id
 
-        // Check authentication
+        // Get current user
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -35,269 +34,196 @@ export default function ProjectDetailPage() {
           return
         }
 
-        // Fetch project details
+        // Fetch project
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
           .select("*")
           .eq("id", projectId)
+          .eq("user_id", user.id)
           .single()
 
-        if (projectError) throw projectError
-
-        // Verify project belongs to user
-        if (projectData.user_id !== user.id) {
-          throw new Error("You don't have permission to view this project")
+        if (projectError || !projectData) {
+          console.error("Error fetching project:", projectError)
+          router.push("/dashboard")
+          return
         }
 
         setProject(projectData)
 
         // Fetch mockups for this project
-        try {
-          const { data: mockupsData, error: mockupsError } = await supabase
-            .from("mockups")
-            .select("*")
-            .eq("project_id", projectId)
-            .order("created_at", { ascending: false })
+        const { data: mockupsData } = await supabase
+          .from("mockups")
+          .select("*")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false })
 
-          if (mockupsError) {
-            if (mockupsError.message.includes("relation") && mockupsError.message.includes("does not exist")) {
-              console.log("Mockups table doesn't exist yet, using empty array")
-              setMockups([])
-            } else {
-              throw mockupsError
-            }
-          } else {
-            setMockups(mockupsData || [])
-          }
-        } catch (mockupsErr) {
-          console.error("Error fetching mockups:", mockupsErr)
-          setMockups([])
+        if (mockupsData) {
+          setMockups(mockupsData)
         }
-      } catch (err) {
-        console.error("Error fetching project:", err)
-        setError(err.message || "Failed to load project")
+      } catch (error) {
+        console.error("Error fetching project data:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProjectData()
-  }, [projectId, router, supabase])
+    if (params.id) {
+      fetchData()
+    }
+  }, [params.id, router, supabase])
 
-  const deleteMockup = async (mockupId: string) => {
-    if (!confirm("Are you sure you want to delete this mockup?")) return
+  // Handle project deletion
+  const handleDeleteProject = async () => {
+    if (!project || !confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+      return
+    }
 
     try {
-      const { error } = await supabase.from("mockups").delete().eq("id", mockupId)
+      setDeleting(true)
 
-      if (error) throw error
+      // Delete all mockups associated with this project
+      await supabase.from("mockups").delete().eq("project_id", project.id)
 
-      // Update the mockups list
-      setMockups(mockups.filter((mockup) => mockup.id !== mockupId))
-    } catch (err) {
-      console.error("Error deleting mockup:", err)
-      alert("Failed to delete mockup: " + err.message)
+      // Delete the project
+      await supabase.from("projects").delete().eq("id", project.id)
+
+      // Redirect to dashboard
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error deleting project:", error)
+      setDeleting(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="container py-10 flex items-center justify-center">
-        <GlassCard className="p-8 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+      <div className="container py-8">
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
           <p>Loading project...</p>
-        </GlassCard>
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (!project) {
     return (
-      <div className="container py-10">
-        <GlassCard className="p-8 text-center">
-          <p className="text-destructive mb-4">{error}</p>
+      <div className="container py-8">
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold mb-4">Project Not Found</h2>
+          <p className="text-muted-foreground mb-6">
+            The project you're looking for doesn't exist or you don't have access to it.
+          </p>
           <GlassButton asChild>
             <Link href="/dashboard">Back to Dashboard</Link>
           </GlassButton>
-        </GlassCard>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container py-10">
-      <div className="mb-8">
+    <div className="container py-8">
+      <div className="flex items-center mb-6">
         <Link
           href="/dashboard"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Link>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{project?.name}</h1>
-          <p className="text-muted-foreground mt-1">{project?.description || "No description"}</p>
+          <h1 className="text-3xl font-bold">{project.name}</h1>
+          <p className="text-muted-foreground mt-1">{project.description || "No description"}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <GlassButton variant="outline" size="sm" asChild>
-            <Link href={`/projects/${projectId}/settings`}>
-              <Settings className="mr-2 h-4 w-4" />
+        <div className="flex gap-2">
+          <GlassButton asChild variant="outline">
+            <Link href={`/projects/${project.id}/settings`}>
+              <Settings className="h-4 w-4 mr-2" />
               Settings
             </Link>
           </GlassButton>
-          <GlassButton asChild>
-            <Link href={`/editor?project=${projectId}`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Mockup
-            </Link>
+
+          <GlassButton variant="destructive" onClick={handleDeleteProject} disabled={deleting}>
+            {deleting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Project
+              </>
+            )}
           </GlassButton>
         </div>
       </div>
 
-      <Tabs defaultValue="mockups">
-        <TabsList className="bg-background/40 backdrop-blur-md mb-6">
-          <TabsTrigger value="mockups">Mockups</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Mockups</h2>
+          <GlassButton asChild>
+            <Link href={`/editor?project=${project.id}`}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Mockup
+            </Link>
+          </GlassButton>
+        </div>
 
-        <TabsContent value="mockups">
-          {mockups.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockups.map((mockup) => (
-                <MockupCard
-                  key={mockup.id}
-                  mockup={mockup}
-                  projectId={projectId}
-                  onDelete={() => deleteMockup(mockup.id)}
-                />
-              ))}
-              <NewMockupCard projectId={projectId} />
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <GlassCard className="p-8 max-w-md mx-auto">
-                <h3 className="text-xl font-bold mb-2">No mockups yet</h3>
-                <p className="text-muted-foreground mb-6">
-                  Create your first mockup to showcase your app in the app store.
-                </p>
-                <GlassButton asChild>
-                  <Link href={`/editor?project=${projectId}`}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Mockup
-                  </Link>
-                </GlassButton>
-              </GlassCard>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="team">
-          <GlassCard className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">Team Members</h3>
-              <GlassButton size="sm">
-                <Users className="mr-2 h-4 w-4" />
-                Invite Members
-              </GlassButton>
-            </div>
-
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Team collaboration is available on the Team plan.</p>
-              <GlassButton className="mt-4" asChild>
-                <Link href="/pricing">Upgrade Plan</Link>
-              </GlassButton>
-            </div>
-          </GlassCard>
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <GlassCard className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">Analytics</h3>
-              <GlassButton size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export Data
-              </GlassButton>
-            </div>
-
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Analytics are available on the Pro and Team plans.</p>
-              <GlassButton className="mt-4" asChild>
-                <Link href="/pricing">Upgrade Plan</Link>
-              </GlassButton>
-            </div>
-          </GlassCard>
-        </TabsContent>
-      </Tabs>
+        {mockups.length === 0 ? (
+          <Card3D className="p-8 text-center">
+            <h3 className="text-xl font-medium mb-4">No Mockups Yet</h3>
+            <p className="text-muted-foreground mb-6">Create your first mockup for this project.</p>
+            <GlassButton asChild>
+              <Link href={`/editor?project=${project.id}`}>
+                <ImageIcon className="mr-2 h-4 w-4" />
+                Create Mockup
+              </Link>
+            </GlassButton>
+          </Card3D>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {mockups.map((mockup) => (
+              <MockupCard key={mockup.id} mockup={mockup} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-function MockupCard({ mockup, projectId, onDelete }) {
+// Mockup card component
+function MockupCard({ mockup }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <GlassCard className="overflow-hidden">
-        <div className="h-48 bg-muted/50 flex items-center justify-center relative">
-          {mockup.background_image_url ? (
+    <Link href={`/mockups/${mockup.id}`}>
+      <Card3D className="p-4 h-full hover:border-primary/50 transition-colors">
+        <div className="aspect-video bg-muted rounded-md mb-3 overflow-hidden">
+          {mockup.image_url ? (
             <img
-              src={mockup.background_image_url || "/placeholder.svg"}
-              alt={mockup.name}
+              src={mockup.image_url || "/placeholder.svg"}
+              alt={mockup.name || "App Mockup"}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.src = "/placeholder.svg?height=200&width=300"
-              }}
             />
           ) : (
-            <Smartphone className="h-12 w-12 text-muted-foreground/50" />
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">No Preview</div>
           )}
         </div>
-        <div className="p-4">
-          <h3 className="text-lg font-bold">{mockup.name}</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {mockup.device_type.charAt(0).toUpperCase() + mockup.device_type.slice(1)}
-          </p>
-          <div className="flex justify-between items-center mt-4">
-            <span className="text-xs text-muted-foreground">{new Date(mockup.created_at).toLocaleDateString()}</span>
-            <div className="flex gap-1">
-              <GlassButton size="sm" variant="ghost" onClick={onDelete}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </GlassButton>
-              <GlassButton size="sm" variant="ghost" asChild>
-                <Link href={`/editor?project=${projectId}&mockup=${mockup.id}`}>
-                  <Pencil className="h-4 w-4" />
-                </Link>
-              </GlassButton>
-              <GlassButton size="sm" asChild>
-                <Link href={`/mockups/${mockup.id}`}>View</Link>
-              </GlassButton>
-            </div>
+
+        <h3 className="font-medium truncate">{mockup.name || "Untitled Mockup"}</h3>
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">{new Date(mockup.created_at).toLocaleDateString()}</p>
+
+          <div className="flex items-center">
+            <Settings className="h-4 w-4 text-muted-foreground" />
           </div>
         </div>
-      </GlassCard>
-    </motion.div>
-  )
-}
-
-function NewMockupCard({ projectId }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.2 }}
-    >
-      <GlassCard className="flex flex-col items-center justify-center p-8 h-full border-dashed">
-        <Plus className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-bold mb-2">Create New Mockup</h3>
-        <p className="text-sm text-muted-foreground text-center mb-4">Generate AI-powered app store mockups</p>
-        <GlassButton asChild>
-          <Link href={`/editor?project=${projectId}`}>Create Mockup</Link>
-        </GlassButton>
-      </GlassCard>
-    </motion.div>
+      </Card3D>
+    </Link>
   )
 }
