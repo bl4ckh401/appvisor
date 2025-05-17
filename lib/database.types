@@ -265,7 +265,7 @@ export interface Database {
           request_payload?: Json | null
           raw_error?: string | null
           timestamp?: string
-        }
+          }
         Update: {
           id?: number
           api_name?: string
