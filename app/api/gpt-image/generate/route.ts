@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       prompt_length: prompt.length,
       format,
       background: background || "default",
-      outputCompression: outputCompression || undefined,
+      outputCompression: outputCompression || undefined
     })
 
     // Generate image
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         quality: quality as any,
         format: format as any,
         background: background as any,
-        outputCompression: outputCompression,
+        outputCompression: outputCompression
       })
 
       if (!result.success) {
