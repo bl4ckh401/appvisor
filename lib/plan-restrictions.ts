@@ -9,34 +9,40 @@ import { useToast } from "@/hooks/use-toast"
 // Define plan features and limits
 export const planFeatures = {
   free: {
-    mockupsPerMonth: 2,
-    bulkGeneration: 0,
-    templates: "basic",
-    teamMembers: 1,
+    mockupsPerMonth: 5,
+    templates: "basic", // basic or all
     exportFormats: ["png", "jpg"],
+    bulkGeneration: 3,
+    teamMembers: 1,
     customBranding: false,
     apiAccess: false,
-    support: "community",
+    gptImageGeneration: true, // Changed to true to allow free usage
+    gptImageEditing: false,
+    gptImageGenerationsPerMonth: 5, // Added this new limit
   },
   pro: {
-    mockupsPerMonth: Number.POSITIVE_INFINITY,
-    bulkGeneration: 10,
+    mockupsPerMonth: Number.POSITIVE_INFINITY, // Unlimited
     templates: "all",
-    teamMembers: 1,
     exportFormats: ["png", "jpg", "svg", "pdf"],
+    bulkGeneration: 10,
+    teamMembers: 1,
     customBranding: true,
     apiAccess: false,
-    support: "priority",
+    gptImageGeneration: true,
+    gptImageEditing: false,
+    gptImageGenerationsPerMonth: 50, // Added higher limit for pro
   },
   team: {
-    mockupsPerMonth: Number.POSITIVE_INFINITY,
-    bulkGeneration: 50,
+    mockupsPerMonth: Number.POSITIVE_INFINITY, // Unlimited
     templates: "all",
+    exportFormats: ["png", "jpg", "svg", "pdf", "figma"],
+    bulkGeneration: 50,
     teamMembers: 5,
-    exportFormats: ["png", "jpg", "svg", "pdf", "html"],
     customBranding: true,
     apiAccess: true,
-    support: "dedicated",
+    gptImageGeneration: true,
+    gptImageEditing: true,
+    gptImageGenerationsPerMonth: Number.POSITIVE_INFINITY, // Unlimited for team
   },
 }
 
@@ -178,9 +184,12 @@ export function useFeatureAccess() {
 }
 
 // Function to get the limit for a specific feature based on plan
-export function getFeatureLimit(feature: FeatureKey, plan: PlanType = "free"): any {
-  if (!planFeatures[plan]) return planFeatures.free[feature]
-  return planFeatures[plan][feature]
+export function getFeatureLimit(plan: string, feature: string): any {
+  const planType = plan as keyof typeof planFeatures
+  if (!planFeatures[planType]) {
+    return planFeatures.free[feature as keyof typeof planFeatures.free]
+  }
+  return planFeatures[planType][feature as keyof (typeof planFeatures)[typeof planType]]
 }
 
 // Get remaining usage for a feature

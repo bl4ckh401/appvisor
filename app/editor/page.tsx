@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { motion } from "framer-motion"
 import { AIImageGenerator } from "@/components/editor/ai-image-generator"
 import { ExportMockup } from "@/components/editor/export-mockup"
+import { GPTImageGenerator } from "@/components/editor/gpt-image-generator"
 import {
   Smartphone,
   Tablet,
@@ -29,6 +30,7 @@ import {
   ChevronLeft,
   Layers,
   Clock,
+  Zap,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -527,7 +529,26 @@ export default function EditorPage() {
                 </TabsList>
 
                 <TabsContent value="mockup" className="p-4 space-y-4">
-                  <AIImageGenerator onImageGenerated={handleImageGenerated} />
+                  <Tabs defaultValue="gemini">
+                    <TabsList className="w-full mb-4">
+                      <TabsTrigger value="gemini" className="flex-1">
+                        <Zap className="h-4 w-4 mr-2" />
+                        Gemini
+                      </TabsTrigger>
+                      <TabsTrigger value="gpt" className="flex-1">
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        GPT Image
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="gemini">
+                      <AIImageGenerator onImageGenerated={handleImageGenerated} />
+                    </TabsContent>
+
+                    <TabsContent value="gpt">
+                      <GPTImageGenerator onImageGenerated={handleImageGenerated} />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
 
                 <TabsContent value="device" className="p-4 space-y-4">
