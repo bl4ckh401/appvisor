@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import { trackFeatureUsage } from "@/lib/usage-tracking"
 
-// Mock planFeatures for testing purposes.  In a real application, this would likely be imported from a config file or database.
+// Mark this file as server-side only
+export const runtime = "nodejs" // 'edge' or 'nodejs'
+
+// Mock planFeatures for testing purposes
 const planFeatures = {
   free: { gptImageGenerationsPerMonth: 5 },
   pro: { gptImageGenerationsPerMonth: 50 },
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { prompt, size, quality, format, background, outputCompression } = body
 
-    if (!prompt) {
+    if (!prompt || !prompt.trim()) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
     }
 
@@ -69,18 +72,21 @@ export async function POST(request: NextRequest) {
       size,
       quality,
       prompt_length: prompt.length,
+      format,
+      background: background || "default",
+      outputCompression: outputCompression || undefined
     })
 
     // Generate image
-    console.log("Starting GPT image generation with prompt:", prompt.substring(0, 50) + "...")
+    console.log("Starting GPT-Image-1 generation with prompt:", prompt.substring(0, 50) + "...")
     try {
       const result = await generateImageWithGPT({
         prompt,
-        size,
-        quality,
-        format,
-        background,
-        outputCompression,
+        size: size as any,
+        quality: quality as any,
+        format: format as any,
+        background: background as any,
+        outputCompression: outputCompression
       })
 
       if (!result.success) {
@@ -89,15 +95,15 @@ export async function POST(request: NextRequest) {
 
       // Return the image URL
       return NextResponse.json({ url: result.url })
-    } catch (error) {
-      console.error("Error generating image with GPT Image:", error)
+    } catch (error: any) {
+      console.error("Error generating image with GPT-Image-1:", error)
       return NextResponse.json(
         { error: error.message || "Failed to generate image. Please check server logs for details." },
         { status: 500 },
       )
     }
-  } catch (error) {
-    console.error("Error in GPT Image generation API:", error)
+  } catch (error: any) {
+    console.error("Error in GPT-Image-1 generation API:", error)
     return NextResponse.json(
       { error: "Failed to generate image. Please check server logs for details." },
       { status: 500 },

@@ -26,6 +26,7 @@ import {
   Palette,
   X,
   Sliders,
+  Info,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
@@ -44,10 +45,9 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
   const [uploadedImage, setUploadedImage] = useState<File | null>(null)
   const [uploadedMask, setUploadedMask] = useState<File | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [size, setSize] = useState<"1024x1024" | "1536x1024" | "1024x1536" | "auto">("1024x1024")
-  const [quality, setQuality] = useState<"low" | "medium" | "high" | "auto">("medium")
+  const [size, setSize] = useState<"1024x1024" | "1792x1024" | "1024x1792">("1024x1024")
+  const [quality, setQuality] = useState<"standard" | "hd">("standard")
   const [format, setFormat] = useState<"png" | "jpeg" | "webp">("png")
-  const [background, setBackground] = useState<"transparent" | "opaque" | "auto">("auto")
   const [compression, setCompression] = useState(75)
   const [showPromptIdeas, setShowPromptIdeas] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -156,21 +156,12 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       // Update local usage count
       setUsageCount((prev) => prev + 1)
 
-      // Prepare request body
-      const requestBody: any = {
-        prompt,
+      // Prepare request body - keep it minimal
+      const requestBody = {
+        prompt: prompt.trim(),
         size,
         quality,
         format,
-      }
-
-      // Add optional parameters if specified
-      if (background !== "auto") {
-        requestBody.background = background
-      }
-
-      if (format !== "png" && compression !== 75) {
-        requestBody.outputCompression = compression
       }
 
       // Make API call
@@ -182,33 +173,36 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         body: JSON.stringify(requestBody),
       })
 
-      // Check if response is ok before trying to parse JSON
+      // Handle response
       if (!response.ok) {
-        let errorMessage = `Failed to generate image: ${response.status} ${response.statusText}`
+        const errorStatus = `${response.status} ${response.statusText}`
+
+        // Try to get error details without consuming the body stream twice
+        let errorMessage = `Failed to generate image: ${errorStatus}`
 
         try {
-          // Try to parse error as JSON
-          const errorData = await response.json()
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error
+          const contentType = response.headers.get("content-type") || ""
+
+          if (contentType.includes("application/json")) {
+            // It's JSON, we can safely parse it
+            const errorData = await response.json()
+            if (errorData && errorData.error) {
+              errorMessage = errorData.error
+            }
+          } else {
+            // Not JSON, treat as text
+            errorMessage = `Server error (${errorStatus}). Please try again later.`
           }
         } catch (parseError) {
-          // If parsing fails, try to get text content
-          try {
-            const textError = await response.text()
-            if (textError) {
-              errorMessage = `Server error: ${textError.substring(0, 100)}...`
-            }
-          } catch (textError) {
-            // If all fails, use the default error message
-            console.error("Could not parse error response:", textError)
-          }
+          console.error("Error parsing error response:", parseError)
+          // Use default error message with status
+          errorMessage = `Server error (${errorStatus}). Please try again later.`
         }
 
         throw new Error(errorMessage)
       }
 
-      // Parse JSON response
+      // Parse successful JSON response
       let data
       try {
         data = await response.json()
@@ -225,7 +219,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
 
       toast({
         title: "Image generated!",
-        description: "Your mockup has been created successfully with GPT Image.",
+        description: "Your mockup has been created successfully with DALL-E.",
       })
     } catch (err) {
       console.error("GPT Image generation error:", err)
@@ -236,6 +230,9 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         description: err.message || "Failed to generate image. Please try again.",
         variant: "destructive",
       })
+
+      // Reset usage count if generation failed
+      setUsageCount((prev) => Math.max(0, prev - 1))
     } finally {
       setLoading(false)
     }
@@ -267,105 +264,12 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       return // The feature access hook will handle showing the premium modal
     }
 
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Track usage
-      await trackFeatureUsage("gpt_image_editing", {
-        quality,
-        size,
-        format,
-        has_mask: !!uploadedMask,
-      })
-
-      // Update local usage count
-      setUsageCount((prev) => prev + 1)
-
-      // Create form data
-      const formData = new FormData()
-      formData.append("prompt", prompt)
-      formData.append("image", uploadedImage)
-
-      if (uploadedMask) {
-        formData.append("mask", uploadedMask)
-      }
-
-      formData.append("size", size)
-      formData.append("quality", quality)
-      formData.append("format", format)
-
-      if (background !== "auto") {
-        formData.append("background", background)
-      }
-
-      if (format !== "png" && compression !== 75) {
-        formData.append("outputCompression", compression.toString())
-      }
-
-      // Make API call
-      const response = await fetch("/api/gpt-image/edit", {
-        method: "POST",
-        body: formData,
-      })
-
-      // Check if response is ok before trying to parse JSON
-      if (!response.ok) {
-        let errorMessage = `Failed to edit image: ${response.status} ${response.statusText}`
-
-        try {
-          // Try to parse error as JSON
-          const errorData = await response.json()
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error
-          }
-        } catch (parseError) {
-          // If parsing fails, try to get text content
-          try {
-            const textError = await response.text()
-            if (textError) {
-              errorMessage = `Server error: ${textError.substring(0, 100)}...`
-            }
-          } catch (textError) {
-            // If all fails, use the default error message
-            console.error("Could not parse error response:", textError)
-          }
-        }
-
-        throw new Error(errorMessage)
-      }
-
-      // Parse JSON response
-      let data
-      try {
-        data = await response.json()
-      } catch (parseError) {
-        console.error("Error parsing JSON response:", parseError)
-        throw new Error("Invalid response format from server")
-      }
-
-      if (!data.url) {
-        throw new Error("No image URL returned from the API")
-      }
-
-      setGeneratedImage(data.url)
-
-      toast({
-        title: "Image edited!",
-        description: "Your image has been edited successfully with GPT Image.",
-      })
-    } catch (err) {
-      console.error("GPT Image editing error:", err)
-      setError(err.message || "An error occurred while editing the image")
-
-      toast({
-        title: "Editing failed",
-        description: err.message || "Failed to edit image. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
+    setError("Image editing is temporarily unavailable. Please try again later.")
+    toast({
+      title: "Feature unavailable",
+      description: "Image editing is temporarily unavailable. Please try again later.",
+      variant: "destructive",
+    })
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -426,7 +330,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     <GlassCard className="p-4 glossy-card" intensity="medium">
       <h3 className="text-lg font-medium mb-4 flex items-center text-glow">
         <Sparkles className="h-4 w-4 text-primary mr-2" />
-        GPT Image Generator
+        DALL-E Image Generator
         <Badge className="ml-2 bg-primary/10 text-xs" variant="outline">
           New
         </Badge>
@@ -518,66 +422,57 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
               exit={{ opacity: 0, height: 0 }}
               className="space-y-4 pt-2"
             >
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label>Size</Label>
-                  <Select value={size} onValueChange={(value) => setSize(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1024x1024">Square (1024x1024)</SelectItem>
-                      <SelectItem value="1536x1024">Landscape (1536x1024)</SelectItem>
-                      <SelectItem value="1024x1536">Portrait (1024x1536)</SelectItem>
-                      <SelectItem value="auto">Auto (Let AI decide)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Info className="h-3 w-3 mr-1" />
+                    DALL-E 3 supported sizes
+                  </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Quality</Label>
-                  <Select value={quality} onValueChange={(value) => setQuality(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select quality" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low (Faster)</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High (Slower)</SelectItem>
-                      <SelectItem value="auto">Auto (Let AI decide)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={size} onValueChange={(value) => setSize(value as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1024x1024">Square (1024x1024)</SelectItem>
+                    <SelectItem value="1792x1024">Landscape (1792x1024)</SelectItem>
+                    <SelectItem value="1024x1792">Portrait (1024x1792)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Format</Label>
-                  <Select value={format} onValueChange={(value) => setFormat(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="png">PNG</SelectItem>
-                      <SelectItem value="jpeg">JPEG</SelectItem>
-                      <SelectItem value="webp">WebP</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Quality</Label>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Info className="h-3 w-3 mr-1" />
+                    HD may use more credits
+                  </div>
                 </div>
+                <Select value={quality} onValueChange={(value) => setQuality(value as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select quality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="hd">HD (Higher Quality)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="space-y-2">
-                  <Label>Background</Label>
-                  <Select value={background} onValueChange={(value) => setBackground(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select background" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto</SelectItem>
-                      <SelectItem value="transparent">Transparent</SelectItem>
-                      <SelectItem value="opaque">Opaque</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Format</Label>
+                <Select value={format} onValueChange={(value) => setFormat(value as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="png">PNG</SelectItem>
+                    <SelectItem value="jpeg">JPEG</SelectItem>
+                    <SelectItem value="webp">WebP</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {(format === "jpeg" || format === "webp") && (
@@ -617,7 +512,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate with GPT Image
+                  Generate with DALL-E
                 </>
               )}
             </GlassButton>
@@ -625,7 +520,17 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         </TabsContent>
 
         <TabsContent value="edit" className="space-y-4">
-          <div className="space-y-2">
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-md mb-4">
+            <div className="flex items-start">
+              <Info className="h-5 w-5 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Image editing is temporarily unavailable while we update our integration with the latest DALL-E API.
+                Please use the Generate tab instead.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2 opacity-60">
             <Label htmlFor="edit-prompt">Describe the changes you want</Label>
             <Textarea
               id="edit-prompt"
@@ -634,194 +539,23 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
               placeholder="E.g., Change the background to a beach scene, add a sunset"
               className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
               rows={3}
+              disabled
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 opacity-60">
             <Label>Upload Image to Edit</Label>
-            <div
-              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-background/50 transition-colors glossy"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploadedImage ? (
-                <div className="relative">
-                  <img
-                    src={URL.createObjectURL(uploadedImage) || "/placeholder.svg"}
-                    alt="Image to edit"
-                    className="max-h-48 mx-auto rounded-md"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <GlassButton size="sm" variant="secondary" className="glossy-button">
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Change Image
-                    </GlassButton>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">Click to upload your image to edit</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG or WebP (max. 5MB)</p>
-                </>
-              )}
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+            <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-not-allowed hover:bg-background/50 transition-colors glossy">
+              <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">Click to upload your image to edit</p>
+              <p className="text-xs text-muted-foreground mt-1">PNG, JPG or WebP (max. 5MB)</p>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <Label className="flex items-center">
-              Upload Mask (Optional)
-              <span className="ml-1 text-xs text-muted-foreground">(Areas to edit should be transparent)</span>
-            </Label>
-            <div
-              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-background/50 transition-colors glossy"
-              onClick={() => maskInputRef.current?.click()}
-            >
-              {uploadedMask ? (
-                <div className="relative">
-                  <img
-                    src={URL.createObjectURL(uploadedMask) || "/placeholder.svg"}
-                    alt="Mask"
-                    className="max-h-48 mx-auto rounded-md"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <GlassButton size="sm" variant="secondary" className="glossy-button">
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Change Mask
-                    </GlassButton>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">Click to upload a mask (transparent areas will be edited)</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG with transparency (max. 5MB)</p>
-                </>
-              )}
-              <input type="file" ref={maskInputRef} className="hidden" accept="image/png" onChange={handleMaskUpload} />
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <GlassButton variant="ghost" size="sm" onClick={() => setShowAdvanced(!showAdvanced)} className="text-xs">
-              <Sliders className="h-3 w-3 mr-1 text-primary" />
-              {showAdvanced ? "Hide Advanced Options" : "Show Advanced Options"}
-            </GlassButton>
-          </div>
-
-          {showAdvanced && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4 pt-2"
-            >
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Size</Label>
-                  <Select value={size} onValueChange={(value) => setSize(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1024x1024">Square (1024x1024)</SelectItem>
-                      <SelectItem value="1536x1024">Landscape (1536x1024)</SelectItem>
-                      <SelectItem value="1024x1536">Portrait (1024x1536)</SelectItem>
-                      <SelectItem value="auto">Auto (Let AI decide)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Quality</Label>
-                  <Select value={quality} onValueChange={(value) => setQuality(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select quality" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low (Faster)</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High (Slower)</SelectItem>
-                      <SelectItem value="auto">Auto (Let AI decide)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Format</Label>
-                  <Select value={format} onValueChange={(value) => setFormat(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="png">PNG</SelectItem>
-                      <SelectItem value="jpeg">JPEG</SelectItem>
-                      <SelectItem value="webp">WebP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Background</Label>
-                  <Select value={background} onValueChange={(value) => setBackground(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select background" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto</SelectItem>
-                      <SelectItem value="transparent">Transparent</SelectItem>
-                      <SelectItem value="opaque">Opaque</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {(format === "jpeg" || format === "webp") && (
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label>Compression: {compression}%</Label>
-                  </div>
-                  <Slider
-                    value={[compression]}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onValueChange={(value) => setCompression(value[0])}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Lower values = smaller file size, higher values = better quality
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center">
-              <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-              <div className="flex-1">{error}</div>
-            </div>
-          )}
 
           <div className="flex justify-end">
-            <GlassButton
-              onClick={editImage}
-              disabled={loading || !prompt.trim() || !uploadedImage}
-              className="glossy-button"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Editing...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="mr-2 h-4 w-4" />
-                  Edit with GPT Image
-                </>
-              )}
+            <GlassButton disabled={true} className="glossy-button opacity-60">
+              <Wand2 className="mr-2 h-4 w-4" />
+              Edit with DALL-E
             </GlassButton>
           </div>
         </TabsContent>
@@ -853,7 +587,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
                 <GlassButton size="sm" variant="outline" asChild className="glossy">
                   <a
                     href={generatedImage}
-                    download="gpt-image-generation.png"
+                    download="dalle-image-generation.png"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
