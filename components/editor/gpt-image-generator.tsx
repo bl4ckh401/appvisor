@@ -46,7 +46,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
   const [uploadedMask, setUploadedMask] = useState<File | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [size, setSize] = useState<"1024x1024" | "1792x1024" | "1024x1792">("1024x1024")
-  const [quality, setQuality] = useState<"low" | "medium" | "high" | "auto">("auto")
+  const [quality, setQuality] = useState<"auto" | "high">("auto")
   const [format, setFormat] = useState<"png" | "jpeg" | "webp">("png")
   const [compression, setCompression] = useState(75)
   const [showPromptIdeas, setShowPromptIdeas] = useState(false)
@@ -146,16 +146,6 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       setLoading(true)
       setError(null)
 
-      // Track usage
-      await trackFeatureUsage("gpt_image_generation", {
-        quality,
-        size,
-        format,
-      })
-
-      // Update local usage count
-      setUsageCount((prev) => prev + 1)
-
       // Prepare request body - keep it minimal
       const requestBody = {
         prompt: prompt.trim(),
@@ -215,6 +205,16 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         throw new Error("No image URL returned from the API")
       }
 
+      // Track usage after successful generation
+      await trackFeatureUsage("gpt_image_generation", {
+        quality,
+        size,
+        format,
+      })
+
+      // Update local usage count
+      setUsageCount((prev) => prev + 1)
+
       setGeneratedImage(data.url)
 
       toast({
@@ -230,9 +230,6 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         description: err.message || "Failed to generate image. Please try again.",
         variant: "destructive",
       })
-
-      // Reset usage count if generation failed
-      setUsageCount((prev) => Math.max(0, prev - 1))
     } finally {
       setLoading(false)
     }

@@ -1,4 +1,5 @@
 import type React from "react"
+
 /**
  * Utility function to get a safe image URL with fallback
  * @param url The original image URL
