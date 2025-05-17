@@ -82,7 +82,6 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
       model: "gpt-image-1",
       prompt: sanitizedPrompt,
       n: 1,
-      response_format: "b64_json", // gpt-image-1 only supports b64_json
       size,
       quality,
     };
