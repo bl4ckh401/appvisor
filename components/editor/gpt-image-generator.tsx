@@ -46,7 +46,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
   const [uploadedMask, setUploadedMask] = useState<File | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [size, setSize] = useState<"1024x1024" | "1792x1024" | "1024x1792">("1024x1024")
-  const [quality, setQuality] = useState<"standard" | "hd">("standard")
+  const [quality, setQuality] = useState<"low" | "medium" | "high" | "auto">("auto")
   const [format, setFormat] = useState<"png" | "jpeg" | "webp">("png")
   const [compression, setCompression] = useState(75)
   const [showPromptIdeas, setShowPromptIdeas] = useState(false)
@@ -455,8 +455,8 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
                     <SelectValue placeholder="Select quality" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="hd">HD (Higher Quality)</SelectItem>
+                    <SelectItem value="auto">Standard</SelectItem>
+                    <SelectItem value="high">HD (Higher Quality)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
