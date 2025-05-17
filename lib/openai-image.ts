@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { Buffer } from "buffer";
+import { uploadToStorage } from "@/lib/supabase/storage-utils";
+import { generateRequestId } from "@/lib/error-monitoring";
 
 // Types for image generation options
 type ImageFormat = "png" | "jpeg" | "webp";
@@ -29,6 +31,7 @@ interface ImageResult {
  * Generate an image using OpenAI's GPT-Image-1 model
  */
 export async function generateImageWithGPT(options: GenerateImageOptions): Promise<ImageResult> {
+  const requestId = generateRequestId();
   try {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY) {
@@ -44,7 +47,7 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    console.log("Preparing to generate image with GPT-Image-1 model");
+    console.log(`Preparing to generate image with GPT-Image-1 model - RequestID: ${requestId}`);
 
     // Extract and validate options
     const { 
@@ -74,7 +77,8 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
       quality,
       format,
       background,
-      outputCompression: outputCompression || "default"
+      outputCompression: outputCompression || "default",
+      requestId
     });
 
     // Prepare request parameters
@@ -101,7 +105,7 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
       params.output_compression = outputCompression;
     }
 
-    console.log("Sending request to OpenAI API:", JSON.stringify({
+    console.log(`Sending request to OpenAI API - RequestID: ${requestId}`, JSON.stringify({
       ...params,
       prompt: sanitizedPrompt.substring(0, 50) + (sanitizedPrompt.length > 50 ? "..." : "")
     }, null, 2));
@@ -110,7 +114,7 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
     const response = await openai.images.generate(params);
     
     if (!response.data || response.data.length === 0 || !response.data[0].b64_json) {
-      console.error("No image data returned from OpenAI", response);
+      console.error(`No image data returned from OpenAI - RequestID: ${requestId}`, response);
       return {
         success: false,
         error: "No image data returned from OpenAI",
@@ -119,17 +123,16 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
 
     // Get the image base64 data from the response
     const imageBase64 = response.data[0].b64_json;
-    console.log("Image data received from OpenAI");
+    console.log(`Image data received from OpenAI - RequestID: ${requestId}`);
 
     // Convert base64 to buffer
     const imageBuffer = Buffer.from(imageBase64, "base64");
-    console.log(`Image decoded, size: ${imageBuffer.length} bytes`);
+    console.log(`Image decoded, size: ${imageBuffer.length} bytes - RequestID: ${requestId}`);
 
-    // Upload to Supabase Storage
+    // Get current user
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
 
-    // Get current user
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -146,34 +149,29 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
     const filename = `gpt-image-${timestamp}.${format}`;
     const filePath = `${userId}/gpt-images/${filename}`;
 
-    console.log(`Uploading image to Supabase: ${filePath}`);
+    // Convert buffer to blob for uploading
+    const imageBlob = new Blob([imageBuffer], { type: `image/${format}` });
+    
+    console.log(`Uploading image to storage - RequestID: ${requestId}`);
 
-    // Upload to storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("mockups")
-      .upload(filePath, imageBuffer, {
-        contentType: `image/${format}`,
-        upsert: true,
-      });
+    // Use the uploadToStorage helper function instead of direct upload
+    const { publicUrl } = await uploadToStorage({
+      bucketName: "assets", // Use the same bucket as Gemini implementation
+      filePath: filePath,
+      fileBlob: imageBlob,
+      contentType: `image/${format}`,
+      userId,
+      requestId
+    });
 
-    if (uploadError) {
-      console.error("Error uploading to Supabase:", uploadError);
-      return {
-        success: false,
-        error: `Failed to upload image: ${uploadError.message}`,
-      };
-    }
-
-    // Get public URL
-    const { data: urlData } = await supabase.storage.from("mockups").getPublicUrl(filePath);
-    console.log("Image successfully uploaded and public URL generated");
+    console.log(`Image successfully uploaded and public URL generated - RequestID: ${requestId}`);
 
     return {
       success: true,
-      url: urlData.publicUrl,
+      url: publicUrl,
     };
   } catch (error: any) {
-    console.error("Error generating image with GPT Image:", error);
+    console.error(`Error generating image with GPT Image - RequestID: ${requestId}:`, error);
     return {
       success: false,
       error: error.message || "Failed to generate image",
@@ -185,10 +183,13 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
  * Edit an image using OpenAI's GPT-Image model
  */
 export async function editImageWithGPT(options: EditImageOptions): Promise<ImageResult> {
+  const requestId = generateRequestId();
   try {
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
+
+    console.log(`Starting image edit with GPT-Image-1 - RequestID: ${requestId}`);
 
     // Set default values for optional parameters
     const size = options.size || "1024x1024";
@@ -244,7 +245,7 @@ export async function editImageWithGPT(options: EditImageOptions): Promise<Image
     }
 
     // Edit the image
-    console.log("Calling OpenAI API with edit params:", {
+    console.log(`Calling OpenAI API with edit params - RequestID: ${requestId}:`, {
       ...params,
       prompt: params.prompt.substring(0, 100) + (params.prompt.length > 100 ? "..." : ""),
       image: "<<image buffer(s)>>",
@@ -262,7 +263,8 @@ export async function editImageWithGPT(options: EditImageOptions): Promise<Image
     const blob = new Blob([imageBuffer], { type: `image/${format}` });
     
     // Generate a unique filename
-    const fileName = `edited-images/${uuidv4()}.${format}`;
+    const fileName = `${options.prompt ? options.prompt.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '-') : 'edited'}-${uuidv4().substring(0, 8)}.${format}`;
+    const filePath = `edited-images/${fileName}`;
     
     // Get user ID from session
     const cookieStore = cookies();
@@ -274,12 +276,11 @@ export async function editImageWithGPT(options: EditImageOptions): Promise<Image
     }
     
     const userId = session.user.id;
-    const requestId = generateRequestId();
     
-    // Upload to Supabase storage
+    // Upload to storage using the helper function
     const { publicUrl } = await uploadToStorage({
-      bucketName: "ai-generated-images",
-      filePath: fileName,
+      bucketName: "assets",
+      filePath: `${userId}/${filePath}`,
       fileBlob: blob,
       contentType: `image/${format}`,
       userId,
@@ -291,7 +292,7 @@ export async function editImageWithGPT(options: EditImageOptions): Promise<Image
       url: publicUrl,
     };
   } catch (error: any) {
-    console.error("Error editing image with GPT Image:", error);
+    console.error(`Error editing image with GPT Image - RequestID: ${requestId}:`, error);
     return {
       success: false,
       error: error.message || "Failed to edit image",
