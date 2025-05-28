@@ -124,10 +124,15 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       setError(null)
 
       // Track usage of mockup generation
-      await trackFeatureUsage("gpt_image_generation", {
-        prompt_length: prompt.length,
-        aspect_ratio: aspectRatio
-      })
+      try {
+        await trackFeatureUsage("gpt_image_generation", {
+          prompt_length: prompt.length,
+          aspect_ratio: aspectRatio
+        })
+      } catch (trackingError) {
+        console.warn("Failed to track usage:", trackingError)
+        // Continue with generation even if tracking fails
+      }
 
       // Enhanced prompt with better instructions
       const enhancedPrompt = enhancePrompt(prompt)
@@ -153,12 +158,21 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         throw new Error(data.error || `Failed to generate image: ${response.status} ${response.statusText}`)
       }
 
-      if (!data.b64_json) {
+      if (!data.b64_json && !data.data?.[0]?.b64_json && !data.url) {
         throw new Error("No image data returned from the API")
       }
 
-      // Convert base64 to data URL
-      const imageUrl = `data:image/png;base64,${data.b64_json}`
+      // Handle different response formats
+      let imageUrl;
+      if (data.b64_json) {
+        imageUrl = `data:image/png;base64,${data.b64_json}`;
+      } else if (data.data?.[0]?.b64_json) {
+        imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+      } else if (data.url) {
+        imageUrl = data.url;
+      } else if (data.data?.[0]?.url) {
+        imageUrl = data.data[0].url;
+      }
       setGeneratedImage(imageUrl)
       setRetryCount(0) // Reset retry count on success
       
@@ -208,33 +222,34 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       setError(null)
 
       // Track usage of mockup generation
-      await trackFeatureUsage("gpt_image_editing", {
-        has_screenshot: true,
-        aspect_ratio: aspectRatio
-      })
-
-      const mockupPrompt = `Create a professional app store screenshot mockup with the following caption: "${caption}". 
-      Use a ${style === "gradient" ? "gradient" : "solid"} background with the base color ${backgroundColor}. 
-      Make the screenshot pop out of the background with 3D effects and realistic shadows.
-      Add depth and perspective to create a visually stunning presentation.
-      The mockup should look professional and similar to Apple App Store or Google Play Store listings.`
-
-      // Convert data URL to blob
-      const base64Data = uploadedImage.split(',')[1];
-      const blob = atob(base64Data);
-      const buffer = new ArrayBuffer(blob.length);
-      const array = new Uint8Array(buffer);
-      for (let i = 0; i < blob.length; i++) {
-        array[i] = blob.charCodeAt(i);
+      try {
+        await trackFeatureUsage("gpt_image_editing", {
+          has_screenshot: true,
+          aspect_ratio: aspectRatio
+        })
+      } catch (trackingError) {
+        console.warn("Failed to track usage:", trackingError)
+        // Continue with generation even if tracking fails
       }
-      const file = new Blob([buffer], { type: 'image/png' });
+
+      const mockupPrompt = `Edit this app screenshot to create a professional app store mockup. Add the caption "${caption}" at the top in large, bold text. 
+      Apply a ${style === "gradient" ? "gradient" : "solid"} background using ${backgroundColor} as the primary color. 
+      Make the screenshot appear to float with 3D perspective and realistic shadows.
+      Add professional polish similar to Apple App Store or Google Play Store featured screenshots.`
+
+      // Convert data URL to File object for the API
+      const response = await fetch(uploadedImage);
+      const blob = await response.blob();
+      const imageFile = new File([blob], "screenshot.png", { type: blob.type });
 
       // Prepare form data
       const formData = new FormData()
+      formData.append("image", imageFile)
       formData.append("prompt", mockupPrompt)
-      formData.append("image", file, "screenshot.png")
-      formData.append("model", "gpt-image-1")
-      formData.append("size", aspectRatio)
+      formData.append("size", "1024x1024") // Edit only supports 1024x1024
+      formData.append("quality", "high")
+      formData.append("format", "png")
+      formData.append("background", "auto")
 
       const response = await fetch("/api/gpt-image/edit", {
         method: "POST",
@@ -247,12 +262,21 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         throw new Error(data.error || `Failed to generate mockup: ${response.status} ${response.statusText}`)
       }
 
-      if (!data.b64_json) {
+      if (!data.b64_json && !data.data?.[0]?.b64_json && !data.url) {
         throw new Error("No image data returned from the API")
       }
 
-      // Convert base64 to data URL
-      const imageUrl = `data:image/png;base64,${data.b64_json}`
+      // Handle different response formats
+      let imageUrl;
+      if (data.b64_json) {
+        imageUrl = `data:image/png;base64,${data.b64_json}`;
+      } else if (data.data?.[0]?.b64_json) {
+        imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+      } else if (data.url) {
+        imageUrl = data.url;
+      } else if (data.data?.[0]?.url) {
+        imageUrl = data.data[0].url;
+      }
       setGeneratedImage(imageUrl)
       setRetryCount(0) // Reset retry count on success
       
@@ -693,8 +717,31 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
                   <a
                     href={generatedImage}
                     download="gpt-mockup.png"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={async (e) => {
+                      // If it's a data URL, download works normally
+                      if (generatedImage.startsWith('data:')) {
+                        return; // Let the default download happen
+                      }
+                      
+                      // If it's a regular URL, we need to fetch and convert to blob
+                      e.preventDefault();
+                      try {
+                        const response = await fetch(generatedImage);
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'gpt-mockup.png';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (error) {
+                        console.error('Download failed:', error);
+                        // Fallback to opening in new tab
+                        window.open(generatedImage, '_blank');
+                      }
+                    }}
                   >
                     <Download className="mr-1 h-3 w-3" />
                     Download
