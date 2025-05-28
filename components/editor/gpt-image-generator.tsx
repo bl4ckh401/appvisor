@@ -238,8 +238,8 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       Add professional polish similar to Apple App Store or Google Play Store featured screenshots.`
 
       // Convert data URL to File object for the API
-      const response = await fetch(uploadedImage);
-      const blob = await response.blob();
+      const imageResponse = await fetch(uploadedImage);
+      const blob = await imageResponse.blob();
       const imageFile = new File([blob], "screenshot.png", { type: blob.type });
 
       // Prepare form data
