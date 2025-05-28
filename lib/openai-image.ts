@@ -27,87 +27,172 @@ interface ImageResult {
   error?: string
 }
 
-// Ensure this only runs on the server
+// Create OpenAI client only on the server side
 const getOpenAIClient = () => {
-  // Check if we're on the server
-  if (typeof window !== "undefined") {
-    throw new Error("OpenAI client can only be initialized on the server")
+  // Check if API key is configured
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OpenAI API key is not configured")
   }
 
+  // Initialize OpenAI client - only for server-side use
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   })
 }
 
-interface GenerateImageParams {
-  prompt: string
-  size?: "1024x1024" | "1792x1024" | "1024x1792"
-  quality?: "standard" | "hd"
-  format?: "png" | "jpeg" | "webp"
-}
-
-interface GenerateImageResult {
-  success: boolean
-  url?: string
-  error?: string
-}
-
 /**
- * Generate an image using OpenAI's DALL·E 3 model
+ * Generate an image using OpenAI's GPT-Image-1 model
  * This function should only be called from server-side code
  */
-export async function generateImageWithGPT({
-  prompt,
-  size = "1024x1024",
-  quality = "standard",
-  format = "png",
-}: GenerateImageParams): Promise<GenerateImageResult> {
+export async function generateImageWithGPT(options: GenerateImageOptions): Promise<ImageResult> {
+  const requestId = generateRequestId()
   try {
-    // Ensure we're on the server
+    // Ensure we're running on the server
     if (typeof window !== "undefined") {
       return {
         success: false,
-        error: "OpenAI client can only be initialized on the server",
+        error: "This function can only be called from server-side code",
       }
     }
 
-    // Get the OpenAI client
+    console.log(`Preparing to generate image with GPT-Image-1 model - RequestID: ${requestId}`)
+
+    // Get OpenAI client
     const openai = getOpenAIClient()
 
-    // Generate the image
-    const response = await openai.images.generate({
-      model: "dall-e-3",
+    // Extract and validate options
+    const {
       prompt,
+      size = "1024x1024",
+      quality = "medium",
+      format = "png",
+      background = format === "png" ? "transparent" : "opaque",
+      outputCompression,
+    } = options
+
+    // Sanitize prompt - remove any leading/trailing whitespace
+    const sanitizedPrompt = prompt.trim()
+
+    if (!sanitizedPrompt) {
+      return {
+        success: false,
+        error: "Prompt cannot be empty",
+      }
+    }
+
+    // Log parameters (without the full prompt for privacy)
+    console.log("GPT-Image-1 parameters:", {
+      model: "gpt-image-1",
+      promptLength: sanitizedPrompt.length,
+      size,
+      quality,
+      format,
+      background,
+      outputCompression: outputCompression || "default",
+      requestId,
+    })
+
+    // Prepare request parameters
+    const params: any = {
+      model: "gpt-image-1",
+      prompt: sanitizedPrompt,
       n: 1,
       size,
       quality,
-      response_format: format,
-    })
+    }
 
-    // Check if we have a valid response
-    if (!response.data || response.data.length === 0 || !response.data[0].url) {
+    // Add output format if specified
+    if (format) {
+      params.output_format = format
+    }
+
+    // Add background if specified
+    if (background && background !== "auto") {
+      params.background = background
+    }
+
+    // Add compression for jpeg and webp formats
+    if ((format === "jpeg" || format === "webp") && typeof outputCompression === "number") {
+      params.output_compression = outputCompression
+    }
+
+    console.log(
+      `Sending request to OpenAI API - RequestID: ${requestId}`,
+      JSON.stringify(
+        {
+          ...params,
+          prompt: sanitizedPrompt.substring(0, 50) + (sanitizedPrompt.length > 50 ? "..." : ""),
+        },
+        null,
+        2,
+      ),
+    )
+
+    // Generate the image with the OpenAI API
+    const response = await openai.images.generate(params)
+
+    if (!response.data || response.data.length === 0 || !response.data[0].b64_json) {
+      console.error(`No image data returned from OpenAI - RequestID: ${requestId}`, response)
       return {
         success: false,
-        error: "No image was generated",
+        error: "No image data returned from OpenAI",
       }
     }
 
+    // Get the image base64 data from the response
+    const imageBase64 = response.data[0].b64_json
+    console.log(`Image data received from OpenAI - RequestID: ${requestId}`)
+
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(imageBase64, "base64")
+    console.log(`Image decoded, size: ${imageBuffer.length} bytes - RequestID: ${requestId}`)
+
+    // Get current user
+    const cookieStore = cookies()
+    const supabase = createClient(cookieStore)
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      return {
+        success: false,
+        error: "User not authenticated",
+      }
+    }
+
+    const userId = session.user.id
+    const timestamp = Date.now()
+    const filename = `gpt-image-${timestamp}.${format}`
+    const filePath = `${userId}/gpt-images/${filename}`
+
+    // Convert buffer to blob for uploading
+    const imageBlob = new Blob([imageBuffer], { type: `image/${format}` })
+
+    console.log(`Uploading image to storage - RequestID: ${requestId}`)
+
+    // Use the uploadToStorage helper function instead of direct upload
+    const { publicUrl } = await uploadToStorage({
+      bucketName: "assets", // Use the same bucket as Gemini implementation
+      filePath: filePath,
+      fileBlob: imageBlob,
+      contentType: `image/${format}`,
+      userId,
+      requestId,
+    })
+
+    console.log(`Image successfully uploaded and public URL generated - RequestID: ${requestId}`)
+
     return {
       success: true,
-      url: response.data[0].url,
+      url: publicUrl,
     }
-  } catch (error) {
-    console.error("Error generating image with GPT:", error)
-
-    // Extract the error message
-    let errorMessage = "Failed to generate image"
-    if (error instanceof Error) {
-      errorMessage = error.message
-    }
-
+  } catch (error: any) {
+    console.error(`Error generating image with GPT Image - RequestID: ${requestId}:`, error)
     return {
       success: false,
-      error: errorMessage,
+      error: error.message || "Failed to generate image",
     }
   }
 }

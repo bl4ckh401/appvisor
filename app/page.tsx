@@ -1,379 +1,836 @@
 "use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Sparkles, Star, CheckCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState } from "react"
+import Link from "next/link"
+import { motion } from "framer-motion"
+import {
+  ArrowRight,
+  Sparkles,
+  Star,
+  CheckCircle,
+  Zap,
+  Palette,
+  Users,
+  Upload,
+  Monitor,
+  Shield,
+  Clock,
+  Target,
+  TrendingUp,
+  Code,
+  Layers,
+  Edit3,
+  BarChart3,
+  Workflow,
+  Brain,
+  Wand2,
+  Settings,
+  Cloud,
+} from "lucide-react"
+import { ModernCard } from "@/components/ui/modern-card"
+import { ModernButton } from "@/components/ui/modern-button"
 
 export default function LandingPage() {
-  const [showPricing, setShowPricing] = useState(false);
+  const [showPricing, setShowPricing] = useState(false)
+  const [activeFeature, setActiveFeature] = useState(0)
 
-  // Animation variants
-  const fadeIn = {
-    initial: { opacity: 0, y: 20 },
+  const fadeInUp = {
+    initial: { opacity: 0, y: 30 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5 }
-  };
+    transition: { duration: 0.6 },
+  }
 
-  // Pricing toggle animation
-  const pricingToggle = {
-    hidden: { height: 0, opacity: 0 },
-    visible: { 
-      height: "auto", 
-      opacity: 1,
+  const staggerChildren = {
+    animate: {
       transition: {
-        height: {
-          duration: 0.4
-        },
-        opacity: {
-          duration: 0.3,
-          delay: 0.1
-        }
-      }
-    }
-  };
+        staggerChildren: 0.1,
+      },
+    },
+  }
+
+  const coreFeatures = [
+    {
+      icon: <Upload className="h-6 w-6" />,
+      title: "Smart Upload System",
+      description:
+        "Drag & drop screenshots or upload from device. Supports PNG, JPG, and batch uploads up to 50 files.",
+      details: "Our intelligent upload system automatically detects device types and optimizes images for processing.",
+    },
+    {
+      icon: <Brain className="h-6 w-6" />,
+      title: "AI-Powered Analysis",
+      description: "Advanced AI analyzes your screenshots and suggests optimal layouts, colors, and positioning.",
+      details: "Machine learning algorithms trained on thousands of successful app store listings.",
+    },
+    {
+      icon: <Wand2 className="h-6 w-6" />,
+      title: "One-Click Generation",
+      description: "Generate professional mockups instantly with customizable templates and smart automation.",
+      details: "Choose from 50+ templates or let AI create custom layouts based on your app category.",
+    },
+    {
+      icon: <Edit3 className="h-6 w-6" />,
+      title: "Advanced Customization",
+      description: "Fine-tune colors, backgrounds, text, and device frames to match your brand perfectly.",
+      details: "Full control over every design element with real-time preview and undo/redo functionality.",
+    },
+  ]
+
+  const integrations = [
+    {
+      name: "App Store Connect",
+      logo: "/placeholder.svg?height=40&width=40",
+      description: "Direct publishing to App Store",
+    },
+    {
+      name: "Google Play Console",
+      logo: "/placeholder.svg?height=40&width=40",
+      description: "Seamless Play Store integration",
+    },
+    { name: "Figma", logo: "/placeholder.svg?height=40&width=40", description: "Import designs directly" },
+    { name: "Sketch", logo: "/placeholder.svg?height=40&width=40", description: "Native Sketch support" },
+    { name: "Adobe XD", logo: "/placeholder.svg?height=40&width=40", description: "XD file compatibility" },
+    { name: "Canva", logo: "/placeholder.svg?height=40&width=40", description: "Enhanced with Canva assets" },
+  ]
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Hero Section */}
-      <section className="w-full pt-20 pb-16 md:py-28 lg:py-36 overflow-hidden">
-        <div className="container px-4 md:px-6">
-          <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center">
+      <section className="relative overflow-hidden pt-20 pb-16 md:pt-32 md:pb-24">
+        {/* Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl float-animation" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/20 rounded-full blur-3xl float-animation" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-radial from-primary/10 to-transparent rounded-full blur-2xl" />
+        </div>
+
+        <div className="container relative z-10 px-4 md:px-6">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
             <motion.div
-              className="flex flex-col justify-center space-y-5"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
+              className="flex flex-col justify-center space-y-8"
+              initial="initial"
+              animate="animate"
+              variants={staggerChildren}
             >
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="flex items-center gap-2 flex-wrap"
-              >
-                <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm font-medium text-primary backdrop-blur-sm">
-                  <Sparkles className="mr-1 h-3 w-3" /> AI-Powered App Mockups
+              <motion.div variants={fadeInUp} className="flex items-center gap-3 flex-wrap">
+                <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary backdrop-blur-xl">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  AI-Powered Mockups
                 </div>
-                <div className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-500 backdrop-blur-sm">
-                  <Star className="mr-1 h-3 w-3" /> Try Free For 14 Days
+                <div className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-400 backdrop-blur-xl">
+                  <Star className="mr-2 h-4 w-4" />
+                  Free 14-Day Trial
                 </div>
               </motion.div>
 
-              <h1 className="text-4xl sm:text-5xl xl:text-6xl/none font-bold tracking-tight">
-                Transform App Screenshots into{" "}
-                <span className="text-gradient bg-gradient-to-r from-purple-600 to-indigo-600">Professional</span> Store
-                Listings
-              </h1>
+              <motion.div variants={fadeInUp} className="space-y-6">
+                <h1 className="text-5xl sm:text-6xl xl:text-7xl font-bold tracking-tight leading-tight">
+                  Transform App Screenshots into <span className="gradient-text">Professional</span> Store Listings
+                </h1>
 
-              <motion.p
-                className="max-w-[600px] text-muted-foreground md:text-xl"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                AppVisor helps developers and designers create stunning app store mockups in minutes, not hours. 
-                Use AI to generate professional marketing assets that convert.
-              </motion.p>
-
-              <motion.div
-                className="flex flex-col sm:flex-row gap-3 pt-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.6 }}
-              >
-                <button 
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-md font-medium flex items-center justify-center hover:opacity-90 transition-all"
-                  onClick={() => setShowPricing(!showPricing)}
-                >
-                  View Pricing Plans
-                  {showPricing ? null : <ArrowRight className="ml-2 h-4 w-4" />}
-                </button>
-                <Link 
-                  href="/auth"
-                  className="px-6 py-3 bg-background border border-border rounded-md font-medium flex items-center justify-center hover:bg-muted/30 transition-all"
-                >
-                  Get Started Free
-                </Link>
+                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
+                  AppVisor is the ultimate AI-powered platform for creating stunning app store mockups. Generate
+                  professional marketing assets in minutes, not hours, with our intelligent design system that
+                  understands what converts.
+                </p>
               </motion.div>
 
-              <motion.div
-                className="flex items-center gap-4 text-sm text-muted-foreground pt-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.8 }}
-              >
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-muted overflow-hidden">
+              <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4">
+                <ModernButton variant="gradient" size="lg" icon={<Sparkles className="h-5 w-5" />} asChild>
+                  <Link href="/auth">Start Free Trial</Link>
+                </ModernButton>
+
+                <ModernButton variant="secondary" size="lg" onClick={() => setShowPricing(!showPricing)}>
+                  View Pricing
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </ModernButton>
+              </motion.div>
+
+              <motion.div variants={fadeInUp} className="flex items-center gap-6 pt-4">
+                <div className="flex -space-x-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className="w-10 h-10 rounded-full border-2 border-background bg-gradient-to-br from-primary to-accent overflow-hidden"
+                    >
                       <img
-                        src={`/placeholder.svg?height=32&width=32&text=${i}`}
+                        src={`/placeholder.svg?height=40&width=40&text=${i}`}
                         alt="User avatar"
                         className="w-full h-full object-cover"
                       />
                     </div>
                   ))}
                 </div>
-                <div>
-                  <span className="font-medium text-foreground">500+</span> developers trust AppVisor
+                <div className="text-sm">
+                  <span className="font-semibold text-foreground">2,500+</span>
+                  <span className="text-muted-foreground ml-1">developers trust AppVisor</span>
                 </div>
               </motion.div>
             </motion.div>
 
             <motion.div
-              className="mx-auto lg:mx-0 relative"
-              initial={{ opacity: 0, scale: 0.9 }}
+              className="relative"
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
             >
-              <div className="relative h-[400px] w-full sm:h-[450px] lg:h-[550px]">
-                <div className="absolute top-0 left-0 w-full h-full rounded-lg" />
-                <div className="absolute w-[80%] h-[80%] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-xl rounded-xl overflow-hidden">
-                  <img
-                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot_20250422_213402_Google%20Play%20Store.jpg-PYCiYQRDL5MUCFqlPz1LEMdUDlRMvJ.jpeg"
-                    alt="App mockup preview"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              <div className="relative">
+                {/* Main mockup display */}
+                <ModernCard variant="glass" className="p-8 glow-lg">
+                  <div className="aspect-[9/16] max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
+                    <img
+                      src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot_20250422_213402_Google%20Play%20Store.jpg-PYCiYQRDL5MUCFqlPz1LEMdUDlRMvJ.jpeg"
+                      alt="App mockup preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </ModernCard>
+
+                {/* Floating elements */}
+                <motion.div
+                  className="absolute -top-6 -left-6 w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-2xl shadow-glow flex items-center justify-center float-animation"
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.8 }}
+                >
+                  <Zap className="h-8 w-8 text-white" />
+                </motion.div>
+
+                <motion.div
+                  className="absolute -bottom-6 -right-6 w-20 h-20 bg-gradient-to-br from-accent to-primary rounded-2xl shadow-glow flex items-center justify-center float-animation"
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 1 }}
+                >
+                  <Palette className="h-6 w-6 text-white" />
+                </motion.div>
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Quick Pricing Section - Animated */}
-      <motion.section
-        className="w-full bg-muted/30 py-8"
-        variants={pricingToggle}
-        initial="hidden"
-        animate={showPricing ? "visible" : "hidden"}
-      >
+      {/* Core Functionalities Section */}
+      <section className="py-24 relative overflow-hidden">
         <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center justify-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold">Simple, Transparent Pricing</h2>
-            <p className="text-muted-foreground mt-2">Choose the plan that works best for you</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Free Plan */}
-            <div className="bg-background border border-border rounded-lg overflow-hidden shadow-sm">
-              <div className="p-6">
-                <h3 className="text-xl font-bold">Free</h3>
-                <div className="mt-2 space-y-2 h-32">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>5 mockups per month</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Basic templates</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Standard export formats</span>
-                  </div>
-                </div>
-                <div className="mt-4 text-2xl font-bold">$0</div>
-                <div className="mt-4">
-                  <Link 
-                    href="/auth"
-                    className="w-full py-2 bg-background border border-border rounded-md font-medium flex items-center justify-center hover:bg-muted/30 transition-all"
-                  >
-                    Start Free
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Pro Plan */}
-            <div className="bg-background border-2 border-primary rounded-lg overflow-hidden shadow-md relative">
-              <div className="absolute top-0 right-0 bg-primary text-xs text-primary-foreground px-3 py-1 rounded-bl-lg">
-                Popular
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold">Pro</h3>
-                <div className="mt-2 space-y-2 h-32">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Unlimited mockups</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>All templates & export formats</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Bulk generation (up to 10)</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Priority support</span>
-                  </div>
-                </div>
-                <div className="mt-4 text-2xl font-bold">$19<span className="text-sm font-normal text-muted-foreground">/month</span></div>
-                <div className="mt-4">
-                  <Link 
-                    href="/subscribe?plan=pro"
-                    className="w-full py-2 bg-primary text-primary-foreground rounded-md font-medium flex items-center justify-center hover:bg-primary/90 transition-all"
-                  >
-                    Start 14-Day Trial
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Team Plan */}
-            <div className="bg-background border border-border rounded-lg overflow-hidden shadow-sm">
-              <div className="p-6">
-                <h3 className="text-xl font-bold">Team</h3>
-                <div className="mt-2 space-y-2 h-32">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Everything in Pro</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Team collaboration (5 members)</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>Bulk generation (up to 50)</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary mt-1" />
-                    <span>API access & white labeling</span>
-                  </div>
-                </div>
-                <div className="mt-4 text-2xl font-bold">$49<span className="text-sm font-normal text-muted-foreground">/month</span></div>
-                <div className="mt-4">
-                  <Link 
-                    href="/subscribe?plan=team"
-                    className="w-full py-2 bg-background border border-border rounded-md font-medium flex items-center justify-center hover:bg-muted/30 transition-all"
-                  >
-                    Start 14-Day Trial
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center mt-8">
-            <Link 
-              href="/pricing"
-              className="text-primary hover:underline flex items-center justify-center"
-            >
-              View full pricing details
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* Example Showcase Section */}
-      <section className="w-full py-16 bg-background">
-        <div className="container px-4 md:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Create Professional App Store Mockups</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Upload your screenshots and transform them into stunning app store listings in seconds
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              <span className="gradient-text">Core Functionalities</span> That Drive Results
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Discover the powerful features that make AppVisor the go-to platform for app store optimization
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center max-w-5xl mx-auto">
-            <div className="bg-gradient-to-br from-purple-600/10 to-indigo-600/10 p-6 rounded-xl">
-              <div className="rounded-lg overflow-hidden shadow-xl">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot_20250422_213402_Google%20Play%20Store.jpg-PYCiYQRDL5MUCFqlPz1LEMdUDlRMvJ.jpeg"
-                  alt="App mockup example"
-                  className="w-full h-auto"
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold">How It Works</h3>
-                <p className="text-muted-foreground">
-                  Creating professional app store mockups has never been easier
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-2 text-primary">
-                    <span className="font-bold">1</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Upload Screenshot</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Upload your app screenshot or generate one with our AI tools
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-2 text-primary">
-                    <span className="font-bold">2</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Customize Mockup</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Add captions, choose colors, and customize the background style
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-2 text-primary">
-                    <span className="font-bold">3</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Export & Share</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Download your professional mockups in high resolution for app stores
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <Link 
-                  href="/auth"
-                  className="px-6 py-3 bg-primary text-primary-foreground rounded-md font-medium inline-flex items-center hover:bg-primary/90 transition-all"
+              {coreFeatures.map((feature, index) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </div>
+                  <ModernCard
+                    variant={activeFeature === index ? "gradient" : "glass"}
+                    interactive
+                    className={`p-6 cursor-pointer transition-all duration-300 ${
+                      activeFeature === index ? "scale-105" : ""
+                    }`}
+                    onClick={() => setActiveFeature(index)}
+                  >
+                    <div className="flex items-start space-x-4">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          activeFeature === index ? "bg-white/20 text-white" : "bg-gradient-primary text-white"
+                        }`}
+                      >
+                        {feature.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3
+                          className={`text-xl font-semibold mb-2 ${
+                            activeFeature === index ? "text-white" : "text-foreground"
+                          }`}
+                        >
+                          {feature.title}
+                        </h3>
+                        <p className={`${activeFeature === index ? "text-white/90" : "text-muted-foreground"}`}>
+                          {feature.description}
+                        </p>
+                      </div>
+                    </div>
+                  </ModernCard>
+                </motion.div>
+              ))}
             </div>
+
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <ModernCard variant="glass" className="p-8">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center text-white">
+                    {coreFeatures[activeFeature].icon}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold mb-4">{coreFeatures[activeFeature].title}</h3>
+                    <p className="text-muted-foreground text-lg leading-relaxed">
+                      {coreFeatures[activeFeature].details}
+                    </p>
+                  </div>
+                  <ModernButton variant="gradient" asChild>
+                    <Link href="/auth">Try This Feature</Link>
+                  </ModernButton>
+                </div>
+              </ModernCard>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="w-full py-16 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+      {/* User Interface & Experience Section */}
+      <section className="py-24 bg-gradient-to-r from-primary/5 to-accent/5">
         <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Your App Store Presence?</h2>
-            <p className="text-lg mb-8">
-              Join thousands of developers and designers who are creating stunning app store listings with AppVisor.
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              Intuitive <span className="gradient-text">User Interface</span> Design
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Experience a beautifully crafted interface that makes complex design tasks simple and enjoyable
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link 
-                href="/subscribe?plan=pro"
-                className="px-6 py-3 bg-white text-purple-600 rounded-md font-medium flex items-center justify-center hover:bg-white/90 transition-all"
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Monitor className="h-8 w-8" />,
+                title: "Responsive Design",
+                description: "Works flawlessly across desktop, tablet, and mobile devices with adaptive layouts.",
+                highlight: "Cross-Platform",
+              },
+              {
+                icon: <Layers className="h-8 w-8" />,
+                title: "Drag & Drop Interface",
+                description: "Intuitive drag-and-drop functionality for effortless file uploads and organization.",
+                highlight: "User-Friendly",
+              },
+              {
+                icon: <Settings className="h-8 w-8" />,
+                title: "Real-Time Preview",
+                description: "See changes instantly with live preview as you customize your mockups.",
+                highlight: "Instant Feedback",
+              },
+              {
+                icon: <Workflow className="h-8 w-8" />,
+                title: "Streamlined Workflow",
+                description: "Optimized user journey from upload to export with minimal clicks required.",
+                highlight: "Efficient",
+              },
+              {
+                icon: <Shield className="h-8 w-8" />,
+                title: "Secure & Private",
+                description: "Enterprise-grade security with encrypted file storage and privacy protection.",
+                highlight: "Trusted",
+              },
+              {
+                icon: <Clock className="h-8 w-8" />,
+                title: "Auto-Save",
+                description: "Never lose your work with automatic saving and version history tracking.",
+                highlight: "Reliable",
+              },
+            ].map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
               >
-                Start Pro Trial
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-              <Link 
-                href="/auth"
-                className="px-6 py-3 bg-transparent border border-white text-white rounded-md font-medium flex items-center justify-center hover:bg-white/10 transition-all"
+                <ModernCard variant="glass" interactive className="p-8 h-full">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center text-white">
+                        {feature.icon}
+                      </div>
+                      <span className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
+                        {feature.highlight}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-semibold">{feature.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                  </div>
+                </ModernCard>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Target Audience Section */}
+      <section className="py-24">
+        <div className="container px-4 md:px-6">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              Built for <span className="gradient-text">Every Creator</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Whether you're a solo developer or part of a large team, AppVisor adapts to your needs
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              {
+                icon: <Code className="h-12 w-12" />,
+                title: "Indie Developers",
+                description: "Solo developers who need professional mockups without design expertise",
+                benefits: ["Quick turnaround", "Cost-effective", "No design skills needed"],
+                color: "from-blue-500 to-cyan-500",
+              },
+              {
+                icon: <Users className="h-12 w-12" />,
+                title: "Design Teams",
+                description: "Creative teams looking to streamline their app store asset creation",
+                benefits: ["Team collaboration", "Brand consistency", "Bulk generation"],
+                color: "from-purple-500 to-pink-500",
+              },
+              {
+                icon: <TrendingUp className="h-12 w-12" />,
+                title: "Marketing Agencies",
+                description: "Agencies managing multiple app clients and campaigns",
+                benefits: ["Client management", "White labeling", "Scalable solutions"],
+                color: "from-green-500 to-emerald-500",
+              },
+              {
+                icon: <Target className="h-12 w-12" />,
+                title: "Enterprise",
+                description: "Large organizations with complex app portfolios",
+                benefits: ["Enterprise security", "API integration", "Custom solutions"],
+                color: "from-orange-500 to-red-500",
+              },
+            ].map((audience, index) => (
+              <motion.div
+                key={audience.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
               >
-                Get Started Free
-              </Link>
+                <ModernCard variant="glass" interactive className="p-8 h-full">
+                  <div className="space-y-6">
+                    <div
+                      className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${audience.color} flex items-center justify-center text-white`}
+                    >
+                      {audience.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold mb-3">{audience.title}</h3>
+                      <p className="text-muted-foreground mb-4">{audience.description}</p>
+                    </div>
+                    <div className="space-y-2">
+                      {audience.benefits.map((benefit) => (
+                        <div key={benefit} className="flex items-center text-sm">
+                          <CheckCircle className="h-4 w-4 text-primary mr-2" />
+                          <span>{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </ModernCard>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Integrations Section */}
+      <section className="py-24 bg-gradient-to-r from-primary/5 to-accent/5">
+        <div className="container px-4 md:px-6">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              Seamless <span className="gradient-text">Integrations</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Connect with your favorite tools and platforms for a streamlined workflow
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
+            {integrations.map((integration, index) => (
+              <motion.div
+                key={integration.name}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+              >
+                <ModernCard variant="glass" interactive className="p-6 text-center">
+                  <div className="space-y-3">
+                    <img
+                      src={integration.logo || "/placeholder.svg"}
+                      alt={integration.name}
+                      className="w-12 h-12 mx-auto rounded-lg"
+                    />
+                    <h3 className="font-semibold text-sm">{integration.name}</h3>
+                    <p className="text-xs text-muted-foreground">{integration.description}</p>
+                  </div>
+                </ModernCard>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <ModernButton variant="secondary" size="lg">
+              <Cloud className="h-5 w-5 mr-2" />
+              View All Integrations
+            </ModernButton>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="py-24">
+        <div className="container px-4 md:px-6">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              Why Choose <span className="gradient-text">AppVisor?</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Discover the competitive advantages that make AppVisor the preferred choice for app store optimization
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              className="space-y-8"
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              {[
+                {
+                  icon: <Clock className="h-6 w-6" />,
+                  title: "Save 90% of Your Time",
+                  description:
+                    "What used to take hours now takes minutes. Focus on building great apps, not creating marketing assets.",
+                  metric: "90% faster",
+                },
+                {
+                  icon: <TrendingUp className="h-6 w-6" />,
+                  title: "Increase Conversion Rates",
+                  description:
+                    "Professional mockups increase app store conversion rates by up to 35% compared to basic screenshots.",
+                  metric: "+35% conversion",
+                },
+                {
+                  icon: <BarChart3 className="h-6 w-6" />,
+                  title: "Boost Download Numbers",
+                  description:
+                    "Apps with high-quality store listings see 3x more downloads than those with basic presentations.",
+                  metric: "3x more downloads",
+                },
+                {
+                  icon: <Shield className="h-6 w-6" />,
+                  title: "Enterprise-Grade Security",
+                  description:
+                    "Your app data is protected with bank-level encryption and compliance with international standards.",
+                  metric: "100% secure",
+                },
+              ].map((benefit, index) => (
+                <motion.div
+                  key={benefit.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                >
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center text-white flex-shrink-0">
+                      {benefit.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-semibold">{benefit.title}</h3>
+                        <span className="text-sm font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
+                          {benefit.metric}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground leading-relaxed">{benefit.description}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <ModernCard variant="gradient" className="p-8">
+                <div className="space-y-6 text-white">
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold mb-2">Success Stories</h3>
+                    <p className="text-white/90">Real results from real customers</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">2,500+</div>
+                      <div className="text-sm text-white/80">Happy Developers</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">50K+</div>
+                      <div className="text-sm text-white/80">Mockups Created</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">98%</div>
+                      <div className="text-sm text-white/80">Satisfaction Rate</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">24/7</div>
+                      <div className="text-sm text-white/80">Support Available</div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/20 pt-6">
+                    <blockquote className="text-center">
+                      <p className="text-white/90 italic mb-3">
+                        "AppVisor transformed our app store presence. Downloads increased by 200% in the first month!"
+                      </p>
+                      <footer className="text-sm text-white/70">— Sarah Chen, Lead Developer at TechStart</footer>
+                    </blockquote>
+                  </div>
+                </div>
+              </ModernCard>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      {showPricing && (
+        <motion.section
+          className="py-16 bg-gradient-to-r from-primary/5 to-accent/5"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="container px-4 md:px-6">
+            <motion.div
+              className="text-center mb-12"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+              <p className="text-xl text-muted-foreground">Choose the plan that works best for you</p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {/* Free Plan */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <ModernCard variant="glass" className="p-8 h-full">
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-2xl font-bold">Free</h3>
+                      <div className="mt-2">
+                        <span className="text-4xl font-bold">$0</span>
+                        <span className="text-muted-foreground">/month</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {["5 mockups per month", "Basic templates", "Standard exports", "Community support"].map(
+                        (feature) => (
+                          <div key={feature} className="flex items-center">
+                            <CheckCircle className="h-5 w-5 text-primary mr-3" />
+                            <span className="text-sm">{feature}</span>
+                          </div>
+                        ),
+                      )}
+                    </div>
+
+                    <ModernButton variant="secondary" className="w-full" asChild>
+                      <Link href="/auth">Get Started</Link>
+                    </ModernButton>
+                  </div>
+                </ModernCard>
+              </motion.div>
+
+              {/* Pro Plan */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <ModernCard variant="gradient" className="p-8 h-full relative">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <div className="bg-accent px-4 py-1 rounded-full text-xs font-medium text-white">Most Popular</div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-2xl font-bold">Pro</h3>
+                      <div className="mt-2">
+                        <span className="text-4xl font-bold">$19</span>
+                        <span className="text-white/80">/month</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        "Unlimited mockups",
+                        "All templates",
+                        "All export formats",
+                        "Bulk generation",
+                        "Priority support",
+                      ].map((feature) => (
+                        <div key={feature} className="flex items-center">
+                          <CheckCircle className="h-5 w-5 text-white mr-3" />
+                          <span className="text-sm text-white">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <ModernButton
+                      variant="secondary"
+                      className="w-full bg-white/20 hover:bg-white/30 text-white border-white/20"
+                      asChild
+                    >
+                      <Link href="/subscribe?plan=pro">Start Free Trial</Link>
+                    </ModernButton>
+                  </div>
+                </ModernCard>
+              </motion.div>
+
+              {/* Team Plan */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <ModernCard variant="glass" className="p-8 h-full">
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-2xl font-bold">Team</h3>
+                      <div className="mt-2">
+                        <span className="text-4xl font-bold">$49</span>
+                        <span className="text-muted-foreground">/month</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        "Everything in Pro",
+                        "Team collaboration",
+                        "Advanced bulk generation",
+                        "API access",
+                        "White labeling",
+                      ].map((feature) => (
+                        <div key={feature} className="flex items-center">
+                          <CheckCircle className="h-5 w-5 text-primary mr-3" />
+                          <span className="text-sm">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <ModernButton variant="secondary" className="w-full" asChild>
+                      <Link href="/subscribe?plan=team">Start Free Trial</Link>
+                    </ModernButton>
+                  </div>
+                </ModernCard>
+              </motion.div>
             </div>
           </div>
+        </motion.section>
+      )}
+
+      {/* CTA Section */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20" />
+
+        <div className="container relative z-10 px-4 md:px-6">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              Ready to Transform Your <span className="gradient-text">App Store Presence?</span>
+            </h2>
+            <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
+              Join thousands of developers and designers who are creating stunning app store listings with AppVisor.
+              Start your free trial today and see the difference professional mockups can make.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <ModernButton variant="gradient" size="lg" icon={<Sparkles className="h-5 w-5" />} asChild>
+                <Link href="/subscribe?plan=pro">Start Pro Trial</Link>
+              </ModernButton>
+              <ModernButton variant="secondary" size="lg" asChild>
+                <Link href="/auth">Get Started Free</Link>
+              </ModernButton>
+            </div>
+
+            <div className="mt-8 text-sm text-muted-foreground">
+              No credit card required • 14-day free trial • Cancel anytime
+            </div>
+          </motion.div>
         </div>
       </section>
     </div>
-  );
+  )
 }

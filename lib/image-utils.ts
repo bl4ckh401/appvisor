@@ -1,38 +1,46 @@
 import type React from "react"
+/**
+ * Utility functions for handling images
+ */
 
 /**
- * Utility function to get a safe image URL with fallback
- * @param url The original image URL
- * @param fallbackUrl The fallback URL to use if the original fails
- * @returns A safe image URL
+ * Gets a safe image URL that can be used in the application
+ * Handles blob URLs and provides fallbacks
  */
-export function getSafeImageUrl(
-  url: string | null | undefined,
-  fallbackUrl = "/placeholder.svg?height=300&width=300",
-): string {
-  if (!url) return fallbackUrl
+export function getSafeImageUrl(url?: string | null): string {
+  if (!url) {
+    return "/placeholder.svg?height=300&width=300"
+  }
 
-  // Check if the URL is a blob URL (which might be problematic)
+  // Check if it's a blob URL (which might cause issues)
   if (url.startsWith("blob:")) {
-    console.warn("Blob URL detected, using fallback instead:", url)
-    return fallbackUrl
+    console.warn("Blob URL detected, using placeholder instead:", url)
+    return "/placeholder.svg?height=300&width=300"
   }
 
   return url
 }
 
 /**
- * Handle image loading errors by replacing with a fallback
- * @param event The error event
- * @param fallbackUrl The fallback URL to use
+ * Handles image loading errors by setting a fallback
  */
-export function handleImageError(
-  event: React.SyntheticEvent<HTMLImageElement, Event>,
-  fallbackUrl = "/placeholder.svg?height=300&width=300",
-): void {
-  const target = event.currentTarget
-  if (target.src !== fallbackUrl) {
-    console.warn("Image failed to load, using fallback:", target.src)
-    target.src = fallbackUrl
-  }
+export function handleImageError(event: React.SyntheticEvent<HTMLImageElement, Event>): void {
+  const target = event.target as HTMLImageElement
+  console.warn("Image failed to load:", target.src)
+  target.src = "/placeholder.svg?height=300&width=300"
+  target.onerror = null // Prevent infinite error loop
+}
+
+/**
+ * Checks if a URL is a valid image URL
+ */
+export function isValidImageUrl(url?: string | null): boolean {
+  if (!url) return false
+
+  // Check for blob URLs
+  if (url.startsWith("blob:")) return false
+
+  // Check for common image extensions
+  const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]
+  return imageExtensions.some((ext) => url.toLowerCase().endsWith(ext))
 }

@@ -1,12 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { GlassButton } from "@/components/ui/glass-button"
 import { GlassCard } from "@/components/ui/glass-card"
 import { ArrowLeft, Download, Edit, Trash2 } from "lucide-react"
-import Image from "next/image"
-import { getSafeImageUrl, handleImageError } from "@/lib/image-utils"
+import { MockupImage } from "@/components/mockup-detail/mockup-image"
 
 export default async function MockupDetailPage({ params }: { params: { id: string } }) {
   const cookieStore = cookies()
@@ -18,31 +17,47 @@ export default async function MockupDetailPage({ params }: { params: { id: strin
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return <div>Please log in to view this mockup</div>
+    redirect("/auth?redirectedFrom=/mockups/" + params.id)
   }
 
   // Fetch mockup details
-  const { data: mockup } = await supabase
-    .from("mockups")
-    .select("*")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single()
+  const { data: mockup, error } = await supabase.from("mockups").select("*").eq("id", params.id).single()
 
-  if (!mockup) {
+  // If there's an error or no mockup found, check if it exists but belongs to another user
+  if (error || !mockup) {
+    console.error("Error fetching mockup:", error?.message || "Mockup not found")
+
+    // Check if mockup exists but belongs to another user
+    const { data: anyMockup } = await supabase.from("mockups").select("user_id").eq("id", params.id).single()
+
+    if (anyMockup && anyMockup.user_id !== user.id) {
+      return (
+        <div className="container mx-auto py-8 px-4">
+          <GlassCard className="p-6">
+            <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+            <p className="mb-4">You don't have permission to view this mockup.</p>
+            <Link href="/dashboard">
+              <GlassButton>Back to Dashboard</GlassButton>
+            </Link>
+          </GlassCard>
+        </div>
+      )
+    }
+
+    // If mockup truly doesn't exist
     notFound()
   }
 
   // Get safe image URL
-  const safeImageUrl = getSafeImageUrl(mockup.image_url)
+  const safeImageUrl = mockup.image_url || "/placeholder.svg?height=300&width=300"
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
       <div className="flex items-center mb-6">
-        <Link href="/mockups">
+        <Link href="/dashboard">
           <GlassButton variant="outline" size="sm" className="glossy mr-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Mockups
+            Back to Dashboard
           </GlassButton>
         </Link>
         <h1 className="text-2xl font-bold text-glow">{mockup.name || "Untitled Mockup"}</h1>
@@ -52,20 +67,7 @@ export default async function MockupDetailPage({ params }: { params: { id: strin
         <div className="md:col-span-2">
           <GlassCard className="p-4 glossy-card">
             <div className="relative aspect-square md:aspect-[4/3] w-full rounded-md overflow-hidden">
-              {safeImageUrl !== "/placeholder.svg?height=300&width=300" ? (
-                <Image
-                  src={safeImageUrl || "/placeholder.svg"}
-                  alt={mockup.name || "App mockup"}
-                  fill
-                  className="object-contain"
-                  priority
-                  onError={(e) => handleImageError(e)}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted">
-                  <p className="text-muted-foreground">No image available</p>
-                </div>
-              )}
+              <MockupImage src={safeImageUrl} alt={mockup.name || "App mockup"} />
             </div>
           </GlassCard>
         </div>
@@ -121,7 +123,7 @@ export default async function MockupDetailPage({ params }: { params: { id: strin
                 </Link>
               )}
 
-              <Link href={`/mockups/${mockup.id}/delete`} className="w-full block">
+              <Link href={`/dashboard`} className="w-full block">
                 <GlassButton variant="destructive" className="w-full">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Mockup

@@ -1,15 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { GlassCard } from "@/components/ui/glass-card"
-import { GlassButton } from "@/components/ui/glass-button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ModernCard } from "@/components/ui/modern-card"
+import { ModernButton } from "@/components/ui/modern-button"
+import { ModernInput } from "@/components/ui/modern-input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Smartphone } from "lucide-react"
+import { Smartphone, Mail, Lock, AlertCircle, CheckCircle } from "lucide-react"
+import { motion } from "framer-motion"
 
 export function AuthForm() {
   const [email, setEmail] = useState("")
@@ -75,104 +74,141 @@ export function AuthForm() {
   }
 
   return (
-    <GlassCard className="w-full max-w-md p-6 mx-auto">
-      <div className="flex items-center justify-center mb-6">
-        <Smartphone className="h-6 w-6 text-primary mr-2" />
-        <h1 className="text-2xl font-bold">AppVisor</h1>
-      </div>
-
-      <Tabs defaultValue="signin" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6 bg-background/40 backdrop-blur-md">
-          <TabsTrigger value="signin">Sign In</TabsTrigger>
-          <TabsTrigger value="signup">Sign Up</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="signin">
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="signin-email">Email</Label>
-              <Input
-                id="signin-email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-background/30 backdrop-blur-sm border-border/40"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="signin-password">Password</Label>
-              <Input
-                id="signin-password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-background/30 backdrop-blur-sm border-border/40"
-              />
-            </div>
-
-            {message && (
-              <div
-                className={`p-3 rounded-md ${
-                  message.type === "error" ? "bg-destructive/10 text-destructive" : "bg-green-500/10 text-green-500"
-                }`}
-              >
-                {message.text}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="w-full max-w-md"
+      >
+        <ModernCard variant="glass" className="p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center mr-3">
+                <Smartphone className="h-6 w-6 text-white" />
               </div>
-            )}
-
-            <GlassButton type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
-            </GlassButton>
-          </form>
-        </TabsContent>
-
-        <TabsContent value="signup">
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="signup-email">Email</Label>
-              <Input
-                id="signup-email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-background/30 backdrop-blur-sm border-border/40"
-              />
+              <h1 className="text-2xl font-bold gradient-text">AppVisor</h1>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="signup-password">Password</Label>
-              <Input
-                id="signup-password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-background/30 backdrop-blur-sm border-border/40"
-              />
-            </div>
+            <p className="text-muted-foreground">Welcome back! Please sign in to your account.</p>
+          </div>
 
-            {message && (
-              <div
-                className={`p-3 rounded-md ${
-                  message.type === "error" ? "bg-destructive/10 text-destructive" : "bg-green-500/10 text-green-500"
-                }`}
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/5 backdrop-blur-xl">
+              <TabsTrigger
+                value="signin"
+                className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white"
               >
-                {message.text}
-              </div>
-            )}
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger
+                value="signup"
+                className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white"
+              >
+                Sign Up
+              </TabsTrigger>
+            </TabsList>
 
-            <GlassButton type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing up..." : "Sign Up"}
-            </GlassButton>
-          </form>
-        </TabsContent>
-      </Tabs>
-    </GlassCard>
+            <TabsContent value="signin">
+              <form onSubmit={handleSignIn} className="space-y-6">
+                <ModernInput
+                  label="Email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  variant="glass"
+                  icon={<Mail className="h-4 w-4" />}
+                />
+
+                <ModernInput
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  variant="glass"
+                  icon={<Lock className="h-4 w-4" />}
+                />
+
+                {message && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-xl flex items-center ${
+                      message.type === "error"
+                        ? "bg-destructive/10 text-destructive border border-destructive/20"
+                        : "bg-green-500/10 text-green-400 border border-green-500/20"
+                    }`}
+                  >
+                    {message.type === "error" ? (
+                      <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+                    ) : (
+                      <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+                    )}
+                    <span className="text-sm">{message.text}</span>
+                  </motion.div>
+                )}
+
+                <ModernButton type="submit" variant="gradient" className="w-full" loading={loading}>
+                  {loading ? "Signing in..." : "Sign In"}
+                </ModernButton>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp} className="space-y-6">
+                <ModernInput
+                  label="Email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  variant="glass"
+                  icon={<Mail className="h-4 w-4" />}
+                />
+
+                <ModernInput
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  variant="glass"
+                  icon={<Lock className="h-4 w-4" />}
+                />
+
+                {message && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-xl flex items-center ${
+                      message.type === "error"
+                        ? "bg-destructive/10 text-destructive border border-destructive/20"
+                        : "bg-green-500/10 text-green-400 border border-green-500/20"
+                    }`}
+                  >
+                    {message.type === "error" ? (
+                      <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+                    ) : (
+                      <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+                    )}
+                    <span className="text-sm">{message.text}</span>
+                  </motion.div>
+                )}
+
+                <ModernButton type="submit" variant="gradient" className="w-full" loading={loading}>
+                  {loading ? "Creating account..." : "Create Account"}
+                </ModernButton>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </ModernCard>
+      </motion.div>
+    </div>
   )
 }

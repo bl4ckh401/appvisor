@@ -1,51 +1,111 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { generateImageWithGPT } from "@/lib/openai-image"
+import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { trackFeatureUsage } from "@/lib/usage-tracking"
 
-// Ensure this runs on the server
-export const runtime = "nodejs"
+// Mark this file as server-side only
+export const runtime = "nodejs" // 'edge' or 'nodejs'
 
-export async function POST(request: Request) {
+// Mock planFeatures for testing purposes
+const planFeatures = {
+  free: { gptImageGenerationsPerMonth: 5 },
+  pro: { gptImageGenerationsPerMonth: 50 },
+  team: { gptImageGenerationsPerMonth: Number.POSITIVE_INFINITY },
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const { prompt, size, quality, format } = await request.json()
+    // Verify authentication
+    const cookieStore = cookies()
+    const supabase = createClient(cookieStore)
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (!prompt) {
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get request body
+    const body = await request.json()
+    const { prompt, size, quality, format, background, outputCompression } = body
+
+    if (!prompt || !prompt.trim()) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
     }
 
-    // Map UI quality values to DALL-E supported values
-    const mappedQuality = quality === "high" ? "hd" : "standard"
+    // Check usage limits
+    const userId = session.user.id
+    const now = new Date()
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // Generate the image
-    const result = await generateImageWithGPT({
-      prompt,
+    // Get user's subscription
+    const { data: subscription } = await supabase
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .single()
+
+    const plan = subscription?.plan || "free"
+    const limit = planFeatures[plan as "free" | "pro" | "team"].gptImageGenerationsPerMonth
+
+    // Get current usage
+    const { count, error } = await supabase
+      .from("feature_usage")
+      .select("*", { count: "exact" })
+      .eq("user_id", userId)
+      .eq("feature", "gpt_image_generation")
+      .gte("timestamp", firstDayOfMonth.toISOString())
+
+    // Check if user has reached their limit
+    if (!error && typeof count === "number" && count >= limit && limit !== Number.POSITIVE_INFINITY) {
+      return NextResponse.json(
+        { error: `You've reached your monthly limit of ${limit} GPT image generations.` },
+        { status: 403 },
+      )
+    }
+
+    // Track feature usage
+    await trackFeatureUsage("gpt_image_generation", {
       size,
-      quality: mappedQuality,
+      quality,
+      prompt_length: prompt.length,
       format,
+      background: background || "default",
+      outputCompression: outputCompression || undefined,
     })
 
-    if (!result.success) {
-      console.error("OpenAI image generation failed:", result.error)
-      return NextResponse.json({ error: result.error }, { status: 500 })
-    }
-
-    // Track feature usage on the server side
+    // Generate image
+    console.log("Starting GPT-Image-1 generation with prompt:", prompt.substring(0, 50) + "...")
     try {
-      await trackFeatureUsage("gpt_image_generation", {
-        quality,
-        size,
-        format,
+      const result = await generateImageWithGPT({
+        prompt,
+        size: size as any,
+        quality: quality as any,
+        format: format as any,
+        background: background as any,
+        outputCompression: outputCompression,
       })
-    } catch (trackingError) {
-      // Log but don't fail the request if tracking fails
-      console.error("Failed to track feature usage:", trackingError)
-    }
 
-    return NextResponse.json({ url: result.url })
-  } catch (error) {
-    console.error("Error in GPT image generation route:", error)
+      if (!result.success) {
+        return NextResponse.json({ error: result.error }, { status: 500 })
+      }
+
+      // Return the image URL
+      return NextResponse.json({ url: result.url })
+    } catch (error: any) {
+      console.error("Error generating image with GPT-Image-1:", error)
+      return NextResponse.json(
+        { error: error.message || "Failed to generate image. Please check server logs for details." },
+        { status: 500 },
+      )
+    }
+  } catch (error: any) {
+    console.error("Error in GPT-Image-1 generation API:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error occurred" },
+      { error: "Failed to generate image. Please check server logs for details." },
       { status: 500 },
     )
   }
