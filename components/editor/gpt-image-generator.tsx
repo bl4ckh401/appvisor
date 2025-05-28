@@ -1,24 +1,21 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef, useEffect } from "react"
+import Link from "next/link"
+import { useState, useEffect, useRef } from "react"
 import { GlassButton } from "@/components/ui/glass-button"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
 import { useFeatureAccess } from "@/hooks/use-feature-access"
 import { trackFeatureUsage } from "@/lib/usage-tracking"
-import { Loader2, Sparkles, Download, Plus, AlertCircle, Upload, Image as ImageIcon, Wand2, Lightbulb, Palette, X, Sliders, Info } from 'lucide-react'
+import { Loader2, Sparkles, Download, Plus, AlertCircle, Upload, Image as ImageIcon, Wand2, Lightbulb, Palette, X, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@/lib/supabase/client"
-import { planFeatures } from "@/lib/plan-restrictions"
 
 interface GPTImageGeneratorProps {
   onImageGenerated: (imageUrl: string) => void
@@ -29,82 +26,86 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null)
-  const [uploadedMask, setUploadedMask] = useState<File | null>(null)
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [size, setSize] = useState<"1024x1024" | "1792x1024" | "1024x1792">("1024x1792") // Portrait by default
-  const [quality, setQuality] = useState<"hd" | "standard">("standard")
-  const [format, setFormat] = useState<"png" | "jpeg" | "webp">("png")
-  const [background, setBackground] = useState<"transparent" | "opaque" | "auto">("auto")
-  const [compression, setCompression] = useState(75)
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [caption, setCaption] = useState("")
+  const [backgroundColor, setBackgroundColor] = useState("#1a1a1a")
+  const [style, setStyle] = useState("gradient")
+  const [retryCount, setRetryCount] = useState(0)
+  const [aspectRatio, setAspectRatio] = useState<"1024x1024" | "1024x1536" | "1536x1024">("1024x1536") // Portrait default
   const [showPromptIdeas, setShowPromptIdeas] = useState(false)
+  const [usageStats, setUsageStats] = useState<{ current: number, limit: number | string }>({ current: 0, limit: 5 })
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const maskInputRef = useRef<HTMLInputElement>(null)
+
   const { toast } = useToast()
-  const { checkFeatureAccess, PremiumModal } = useFeatureAccess()
+  const { subscription, checkFeatureAccess, getFeatureLimit, getRemaining, PremiumModal } = useFeatureAccess()
 
-  const [usageCount, setUsageCount] = useState<number>(0)
-  const [usageLimit, setUsageLimit] = useState<number>(5) // Default to free tier
-  const [usageLoading, setUsageLoading] = useState<boolean>(true)
+  // Creative prompt suggestions for app mockups
+  const promptSuggestions = [
+    "Professional app store screenshot of a fitness tracking app with dark theme and neon green accents, showing workout stats",
+    "Clean mockup of a meditation app with calming blue gradients, featuring a timer and breathing exercises",
+    "Vibrant food delivery app mockup with hero images of meals, restaurant cards, and order tracking",
+    "Modern productivity app mockup showing kanban boards, task lists, and team collaboration features",
+    "Elegant travel booking app mockup with destination photos, flight search, and hotel recommendations",
+  ]
 
+  // Get usage stats on component mount
   useEffect(() => {
-    const fetchUsageData = async () => {
+    const fetchUsage = async () => {
+      if (!subscription) return;
+      
       try {
-        setUsageLoading(true)
-        const supabase = createClient()
-
-        // Get current user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (!user) return
-
-        // Get user's subscription
-        const { data: subscription } = await supabase
-          .from("user_subscriptions")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("status", "active")
-          .single()
-
-        const plan = subscription?.plan || "free"
-
-        // Set the limit based on plan
-        setUsageLimit(planFeatures[plan as "free" | "pro" | "team"].gptImageGenerationsPerMonth)
-
-        // Get current month's usage
-        const { data: usageData, error } = await supabase
-          .from("feature_usage")
-          .select("count")
-          .eq("user_id", user.id)
-          .eq("feature", "gpt_image_generation")
-          .gte("timestamp", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
-          .single()
-
-        if (!error && usageData) {
-          setUsageCount(usageData.count)
+        // Get remaining GPT image generations this month
+        const remaining = await getRemaining("gptImageGenerationsPerMonth");
+        const limit = getFeatureLimit("gptImageGenerationsPerMonth");
+        
+        if (limit === Number.POSITIVE_INFINITY) {
+          setUsageStats({ current: 0, limit: "Unlimited" });
         } else {
-          // If no record exists, count is 0
-          setUsageCount(0)
+          const used = limit - remaining;
+          setUsageStats({ current: used, limit });
         }
       } catch (error) {
-        console.error("Error fetching usage data:", error)
-      } finally {
-        setUsageLoading(false)
+        console.error("Error fetching usage stats:", error);
       }
-    }
+    };
+    
+    fetchUsage();
+  }, [subscription, getRemaining, getFeatureLimit]);
 
-    fetchUsageData()
-  }, [])
+  const enhancePrompt = (basePrompt: string): string => {
+    const enhancers = [
+      "Create a professional, high-quality app screenshot with",
+      "Design a visually stunning mobile interface featuring",
+      "Generate a realistic app mockup showcasing",
+      "Produce a detailed app UI visualization with",
+      "Create an elegant mobile application screen with",
+    ]
 
-  // Creative prompt suggestions
-  const promptSuggestions = [
-    "A sleek fitness app with workout tracking, dark theme with neon green accents",
-    "A minimalist meditation app with calming blue gradients and zen-inspired UI",
-    "A food delivery app with vibrant food photography and intuitive ordering flow",
-    "A productivity app with kanban boards, clean layout, and subtle animations",
-    "A travel booking app with immersive destination imagery and smooth booking process",
-  ]
+    const visualEnhancements = [
+      "3D elements that pop out of the screen",
+      "realistic shadows and lighting effects",
+      "depth and perspective in the UI elements",
+      "subtle gradients and color transitions",
+      "professional typography and spacing",
+      "glossy and reflective surfaces",
+      "glass morphism effects with blur and transparency",
+    ]
+
+    const qualityDirectives = [
+      "Make it photorealistic and highly detailed.",
+      "Ensure it looks like a professional app design.",
+      "Create a UI that appears three-dimensional and tactile.",
+      "Design it to look like a screenshot from a real device.",
+      "Render it with high fidelity and attention to detail.",
+    ]
+
+    // Randomly select enhancers
+    const selectedEnhancer = enhancers[Math.floor(Math.random() * enhancers.length)]
+    const selectedVisualEnhancement = visualEnhancements[Math.floor(Math.random() * visualEnhancements.length)]
+    const selectedQualityDirective = qualityDirectives[Math.floor(Math.random() * qualityDirectives.length)]
+
+    return `${selectedEnhancer} ${basePrompt}. Include ${selectedVisualEnhancement}. ${selectedQualityDirective}`
+  }
 
   const generateImage = async () => {
     if (!prompt.trim()) {
@@ -112,80 +113,67 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       return
     }
 
-    // Check if user has reached their monthly limit
-    if (usageCount >= usageLimit && usageLimit !== Number.POSITIVE_INFINITY) {
-      toast({
-        title: "Usage limit reached",
-        description: `You've used all ${usageLimit} GPT image generations for this month. Upgrade your plan for more.`,
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Check if user has access to this premium feature
-    if (!checkFeatureAccess("gptImageGeneration")) {
-      return // The feature access hook will handle showing the premium modal
+    // Check if we've reached the mockup limit for this month
+    if (typeof usageStats.limit === 'number' && usageStats.current >= usageStats.limit) {
+      setError("You've reached your monthly GPT image generation limit. Upgrade your plan to create more mockups.")
+      return;
     }
 
     try {
       setLoading(true)
       setError(null)
 
-      // Prepare request body
-      const requestBody = {
-        prompt: prompt.trim(),
-        size,
-        quality,
-        format,
-        background,
-      }
+      // Track usage of mockup generation
+      await trackFeatureUsage("gpt_image_generation", {
+        prompt_length: prompt.length,
+        aspect_ratio: aspectRatio
+      })
 
-      // Make API call
+      // Enhanced prompt with better instructions
+      const enhancedPrompt = enhancePrompt(prompt)
+
       const response = await fetch("/api/gpt-image/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          prompt: enhancedPrompt,
+          model: "gpt-image-1",
+          size: aspectRatio,
+          quality: "high",
+          output_format: "png",
+          background: "auto",
+        }),
       })
 
-      // Handle response
+      const data = await response.json()
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to generate image: ${response.status} ${response.statusText}`)
+        throw new Error(data.error || `Failed to generate image: ${response.status} ${response.statusText}`)
       }
 
-      // Parse successful JSON response
-      let data
-      try {
-        data = await response.json()
-      } catch (parseError) {
-        console.error("Error parsing JSON response:", parseError)
-        throw new Error("Invalid response format from server")
+      if (!data.b64_json) {
+        throw new Error("No image data returned from the API")
       }
 
-      if (!data.url) {
-        throw new Error("No image URL returned from the API")
-      }
-
-      // Track usage after successful generation
-      await trackFeatureUsage("gpt_image_generation", {
-        quality,
-        size,
-        format,
-      })
-
-      // Update local usage count
-      setUsageCount((prev) => prev + 1)
-
-      setGeneratedImage(data.url)
+      // Convert base64 to data URL
+      const imageUrl = `data:image/png;base64,${data.b64_json}`
+      setGeneratedImage(imageUrl)
+      setRetryCount(0) // Reset retry count on success
+      
+      // Update usage stats
+      setUsageStats(prev => ({
+        current: prev.current + 1,
+        limit: prev.limit
+      }))
 
       toast({
-        title: "Image generated!",
-        description: "Your mockup has been created successfully with DALL-E.",
+        title: "Mockup generated!",
+        description: "Your app mockup has been created successfully.",
       })
-    } catch (err) {
-      console.error("GPT Image generation error:", err)
+    } catch (err: any) {
+      console.error("Image generation error:", err)
       setError(err.message || "An error occurred while generating the image")
 
       toast({
@@ -198,101 +186,107 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     }
   }
 
-  const editImage = async () => {
-    if (!prompt.trim()) {
-      setError("Please enter a description")
-      return
-    }
-
+  const generateAppStoreMockup = async () => {
     if (!uploadedImage) {
-      setError("Please upload an image to edit")
+      setError("Please upload a screenshot first")
       return
     }
 
-    // Check if user has reached their monthly limit
-    if (usageCount >= usageLimit && usageLimit !== Number.POSITIVE_INFINITY) {
-      toast({
-        title: "Usage limit reached",
-        description: `You've used all ${usageLimit} GPT image generations for this month. Upgrade your plan for more.`,
-        variant: "destructive",
-      })
+    if (!caption.trim()) {
+      setError("Please enter a caption for your mockup")
       return
     }
-
-    // Check if user has access to this premium feature
-    if (!checkFeatureAccess("gptImageEditing")) {
-      return // The feature access hook will handle showing the premium modal
+    
+    // Check if we've reached the mockup limit for this month
+    if (typeof usageStats.limit === 'number' && usageStats.current >= usageStats.limit) {
+      setError("You've reached your monthly GPT image generation limit. Upgrade your plan to create more mockups.")
+      return;
     }
 
     try {
       setLoading(true)
       setError(null)
 
+      // Track usage of mockup generation
+      await trackFeatureUsage("gpt_image_editing", {
+        has_screenshot: true,
+        aspect_ratio: aspectRatio
+      })
+
+      const mockupPrompt = `Create a professional app store screenshot mockup with the following caption: "${caption}". 
+      Use a ${style === "gradient" ? "gradient" : "solid"} background with the base color ${backgroundColor}. 
+      Make the screenshot pop out of the background with 3D effects and realistic shadows.
+      Add depth and perspective to create a visually stunning presentation.
+      The mockup should look professional and similar to Apple App Store or Google Play Store listings.`
+
+      // Convert data URL to blob
+      const base64Data = uploadedImage.split(',')[1];
+      const blob = atob(base64Data);
+      const buffer = new ArrayBuffer(blob.length);
+      const array = new Uint8Array(buffer);
+      for (let i = 0; i < blob.length; i++) {
+        array[i] = blob.charCodeAt(i);
+      }
+      const file = new Blob([buffer], { type: 'image/png' });
+
       // Prepare form data
       const formData = new FormData()
-      formData.append("prompt", prompt.trim())
-      formData.append("size", size)
-      formData.append("quality", quality)
-      formData.append("format", format)
-      formData.append("background", background)
-      formData.append("image", uploadedImage)
+      formData.append("prompt", mockupPrompt)
+      formData.append("image", file, "screenshot.png")
+      formData.append("model", "gpt-image-1")
+      formData.append("size", aspectRatio)
 
-      if (uploadedMask) {
-        formData.append("mask", uploadedMask)
-      }
-
-      // Make API call
       const response = await fetch("/api/gpt-image/edit", {
         method: "POST",
         body: formData,
       })
 
-      // Handle response
+      const data = await response.json()
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to edit image: ${response.status} ${response.statusText}`)
+        throw new Error(data.error || `Failed to generate mockup: ${response.status} ${response.statusText}`)
       }
 
-      // Parse successful JSON response
-      let data
-      try {
-        data = await response.json()
-      } catch (parseError) {
-        console.error("Error parsing JSON response:", parseError)
-        throw new Error("Invalid response format from server")
+      if (!data.b64_json) {
+        throw new Error("No image data returned from the API")
       }
 
-      if (!data.url) {
-        throw new Error("No image URL returned from the API")
-      }
-
-      // Track feature usage after successful generation
-      await trackFeatureUsage("gpt_image_editing", {
-        quality,
-        size,
-        format,
-      })
-
-      // Update local usage count
-      setUsageCount((prev) => prev + 1)
-
-      setGeneratedImage(data.url)
+      // Convert base64 to data URL
+      const imageUrl = `data:image/png;base64,${data.b64_json}`
+      setGeneratedImage(imageUrl)
+      setRetryCount(0) // Reset retry count on success
+      
+      // Update usage stats
+      setUsageStats(prev => ({
+        current: prev.current + 1,
+        limit: prev.limit
+      }))
 
       toast({
-        title: "Image edited!",
-        description: "Your image has been edited successfully with DALL-E.",
+        title: "Mockup generated!",
+        description: "Your app store mockup has been created successfully.",
       })
-    } catch (err) {
-      console.error("GPT Image editing error:", err)
-      setError(err.message || "An error occurred while editing the image")
+    } catch (err: any) {
+      console.error("Mockup generation error:", err)
+      setError(err.message || "An error occurred while generating the mockup")
 
       toast({
-        title: "Editing failed",
-        description: err.message || "Failed to edit image. Please try again.",
+        title: "Generation failed",
+        description: err.message || "Failed to generate mockup. Please try again.",
         variant: "destructive",
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRetry = () => {
+    setRetryCount(retryCount + 1)
+    setError(null)
+    if (uploadedImage) {
+      generateAppStoreMockup()
+    } else {
+      generateImage()
     }
   }
 
@@ -312,27 +306,12 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       return
     }
 
-    setUploadedImage(file)
-    setError(null)
-  }
-
-  const handleMaskUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Check file type
-    if (!file.type.startsWith("image/")) {
-      setError("Please upload an image file for the mask")
-      return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setUploadedImage(event.target?.result as string)
+      setError(null)
     }
-
-    // Check file size (max 4MB)
-    if (file.size > 4 * 1024 * 1024) {
-      setError("Mask file size should be less than 4MB")
-      return
-    }
-
-    setUploadedMask(file)
+    reader.readAsDataURL(file)
   }
 
   const useGeneratedImage = () => {
@@ -341,8 +320,18 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       setGeneratedImage(null)
       setPrompt("")
       setUploadedImage(null)
-      setUploadedMask(null)
+      setCaption("")
     }
+  }
+
+  // Fallback to a placeholder if we've tried multiple times and still have errors
+  const useFallbackImage = () => {
+    // Create a fallback image URL based on the prompt or caption
+    const fallbackUrl = `/placeholder.svg?height=512&width=512&text=${encodeURIComponent(
+      prompt || caption || "App Mockup",
+    )}`
+    setGeneratedImage(fallbackUrl)
+    setError(null)
   }
 
   const handlePromptIdeaClick = (idea: string) => {
@@ -350,22 +339,42 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     setShowPromptIdeas(false)
   }
 
+  // Determine if free tier and show usage limits
+  const isFreeTier = !subscription || subscription.plan === "free";
+  const showUpgradeNeeded = isFreeTier && typeof usageStats.limit === 'number' && usageStats.current >= usageStats.limit;
+
   return (
     <GlassCard className="p-4 glossy-card" intensity="medium">
       <h3 className="text-lg font-medium mb-4 flex items-center text-glow">
         <Sparkles className="h-4 w-4 text-primary mr-2" />
-        DALL-E Image Generator
-        <Badge className="ml-2 bg-primary/10 text-xs" variant="outline">
-          New
-        </Badge>
+        GPT-Image Mockup Generator
       </h3>
-      {!usageLoading && usageLimit !== Number.POSITIVE_INFINITY && (
-        <div className="text-xs text-muted-foreground mb-4 flex items-center">
-          <span className="mr-1">Usage:</span>
-          <span className={usageCount >= usageLimit ? "text-destructive font-medium" : ""}>
-            {usageCount} / {usageLimit}
-          </span>
-          <span className="ml-1">this month</span>
+
+      {/* Usage stats */}
+      <div className="mb-4 flex justify-between items-center">
+        <div>
+          <Label className="text-sm">Monthly Usage</Label>
+          <div className="text-xs text-muted-foreground">
+            {usageStats.current} / {usageStats.limit} mockups
+          </div>
+        </div>
+        
+        {isFreeTier && (
+          <GlassButton size="sm" variant="outline" asChild>
+            <Link href="/subscribe">Upgrade</Link>
+          </GlassButton>
+        )}
+      </div>
+
+      {showUpgradeNeeded && (
+        <div className="p-3 rounded-md bg-amber-500/10 text-amber-500 text-sm flex items-center mb-4">
+          <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+          <div className="flex-1">
+            You've reached your free tier limit of {usageStats.limit} mockups this month.
+            <Link href="/subscribe" className="block mt-1 font-medium hover:underline">
+              Upgrade to Pro for unlimited mockups →
+            </Link>
+          </div>
         </div>
       )}
 
@@ -373,18 +382,18 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         <TabsList className="w-full mb-4">
           <TabsTrigger value="generate" className="flex-1">
             <Wand2 className="h-4 w-4 mr-2" />
-            Generate
+            AI Generate
           </TabsTrigger>
-          <TabsTrigger value="edit" className="flex-1">
-            <ImageIcon className="h-4 w-4 mr-2" />
-            Edit
+          <TabsTrigger value="upload" className="flex-1">
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Screenshot
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="generate" className="space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <Label htmlFor="prompt">Describe the image you want</Label>
+              <Label htmlFor="prompt">Describe the app mockup you want</Label>
               <GlassButton
                 variant="ghost"
                 size="sm"
@@ -402,6 +411,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
               placeholder="E.g., A fitness app dashboard showing workout progress with a dark theme and lime green accents"
               className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
               rows={3}
+              disabled={showUpgradeNeeded}
             />
 
             {showPromptIdeas && (
@@ -432,102 +442,55 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
             )}
           </div>
 
-          <div className="flex justify-between items-center">
-            <GlassButton variant="ghost" size="sm" onClick={() => setShowAdvanced(!showAdvanced)} className="text-xs">
-              <Sliders className="h-3 w-3 mr-1 text-primary" />
-              {showAdvanced ? "Hide Advanced Options" : "Show Advanced Options"}
-            </GlassButton>
-          </div>
-
-          {showAdvanced && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4 pt-2"
+          <div className="space-y-2">
+            <Label>Aspect Ratio</Label>
+            <RadioGroup
+              value={aspectRatio}
+              onValueChange={(value) => setAspectRatio(value as any)}
+              className="flex flex-wrap gap-2"
             >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Size</Label>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Info className="h-3 w-3 mr-1" />
-                    DALL-E 3 supported sizes
-                  </div>
-                </div>
-                <Select value={size} onValueChange={(value) => setSize(value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1024x1024">Square (1024x1024)</SelectItem>
-                    <SelectItem value="1792x1024">Landscape (1792x1024)</SelectItem>
-                    <SelectItem value="1024x1792">Portrait (1024x1792)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="1024x1024" id="ratio-square" disabled={showUpgradeNeeded} />
+                <Label htmlFor="ratio-square">Square (1024x1024)</Label>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Quality</Label>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Info className="h-3 w-3 mr-1" />
-                    HD may use more credits
-                  </div>
-                </div>
-                <Select value={quality} onValueChange={(value) => setQuality(value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select quality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="hd">HD (Higher Quality)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="1536x1024" id="ratio-landscape" disabled={showUpgradeNeeded} />
+                <Label htmlFor="ratio-landscape">Landscape (1536x1024)</Label>
               </div>
-
-              <div className="space-y-2">
-                <Label>Format</Label>
-                <Select value={format} onValueChange={(value) => setFormat(value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="png">PNG</SelectItem>
-                    <SelectItem value="jpeg">JPEG</SelectItem>
-                    <SelectItem value="webp">WebP</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="1024x1536" id="ratio-portrait" disabled={showUpgradeNeeded} />
+                <Label htmlFor="ratio-portrait">Portrait (1024x1536)</Label>
               </div>
-
-              {(format === "jpeg" || format === "webp") && (
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label>Compression: {compression}%</Label>
-                  </div>
-                  <Slider
-                    value={[compression]}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onValueChange={(value) => setCompression(value[0])}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Lower values = smaller file size, higher values = better quality
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          )}
+            </RadioGroup>
+          </div>
 
           {error && (
             <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center">
               <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
               <div className="flex-1">{error}</div>
+              <div className="flex gap-2">
+                {retryCount < 3 && !showUpgradeNeeded && (
+                  <GlassButton size="sm" variant="outline" onClick={handleRetry}>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Retry
+                  </GlassButton>
+                )}
+                {retryCount >= 3 && !showUpgradeNeeded && (
+                  <GlassButton size="sm" variant="outline" onClick={useFallbackImage}>
+                    <ImageIcon className="h-3 w-3 mr-1" />
+                    Use Fallback
+                  </GlassButton>
+                )}
+              </div>
             </div>
           )}
 
           <div className="flex justify-end">
-            <GlassButton onClick={generateImage} disabled={loading || !prompt.trim()} className="glossy-button">
+            <GlassButton 
+              onClick={generateImage} 
+              disabled={loading || showUpgradeNeeded || !prompt.trim()} 
+              className="glossy-button"
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -536,245 +499,214 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate with DALL-E
+                  Generate Mockup
                 </>
               )}
             </GlassButton>
           </div>
         </TabsContent>
 
-        <TabsContent value="edit" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-prompt">Describe the changes you want</Label>
-            <Textarea
-              id="edit-prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., Change the background to a beach scene, add a sunset"
-              className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Upload Image to Edit</Label>
+        <TabsContent value="upload" className="space-y-4">
+          <div className="space-y-4">
             <div
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-background/50 transition-colors glossy"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !showUpgradeNeeded && fileInputRef.current?.click()}
             >
               {uploadedImage ? (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">{uploadedImage.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {(uploadedImage.size / 1024 / 1024).toFixed(2)} MB
+                <div className="relative">
+                  <img
+                    src={uploadedImage || "/placeholder.svg"}
+                    alt="Uploaded screenshot"
+                    className="max-h-48 mx-auto rounded-md"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <GlassButton size="sm" variant="secondary" className="glossy-button" disabled={showUpgradeNeeded}>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Change Image
+                    </GlassButton>
                   </div>
+                </div>
+              ) : (
+                <>
+                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">
+                    {showUpgradeNeeded ? "Upgrade your plan to upload images" : "Click to upload your app screenshot"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG or WebP (max. 25MB)</p>
+                </>
+              )}
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="caption">Caption</Label>
+              <Input
+                id="caption"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="e.g., Quit Any Addiction"
+                className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
+                disabled={showUpgradeNeeded}
+              />
+              <p className="text-xs text-muted-foreground">This will appear as the headline above your screenshot</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="background-color">Background Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    id="background-color"
+                    value={backgroundColor}
+                    onChange={(e) => setBackgroundColor(e.target.value)}
+                    className="w-12 h-10 p-1"
+                    disabled={showUpgradeNeeded}
+                  />
+                  <Input
+                    type="text"
+                    value={backgroundColor}
+                    onChange={(e) => setBackgroundColor(e.target.value)}
+                    className="flex-1 bg-background/30 backdrop-blur-sm border-border/40 glossy"
+                    disabled={showUpgradeNeeded}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Background Style</Label>
+                <div className="flex gap-2">
                   <GlassButton
-                    variant="outline"
+                    type="button"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setUploadedImage(null)
-                    }}
+                    variant={style === "gradient" ? "default" : "outline"}
+                    onClick={() => setStyle("gradient")}
+                    className={`flex-1 ${style === "gradient" ? "glossy-button" : ""}`}
+                    disabled={showUpgradeNeeded}
                   >
-                    <X className="h-3 w-3 mr-1" />
-                    Remove
+                    Gradient
+                  </GlassButton>
+                  <GlassButton
+                    type="button"
+                    size="sm"
+                    variant={style === "solid" ? "default" : "outline"}
+                    onClick={() => setStyle("solid")}
+                    className={`flex-1 ${style === "solid" ? "glossy-button" : ""}`}
+                    disabled={showUpgradeNeeded}
+                  >
+                    Solid
                   </GlassButton>
                 </div>
-              ) : (
-                <>
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Click to upload an image to edit
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    PNG, JPEG, or WebP (max 25MB)
-                  </p>
-                </>
-              )}
+              </div>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </div>
 
-          <div className="space-y-2">
-            <Label>Upload Mask (Optional)</Label>
-            <div
-              className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-background/50 transition-colors glossy"
-              onClick={() => maskInputRef.current?.click()}
-            >
-              {uploadedMask ? (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">{uploadedMask.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {(uploadedMask.size / 1024 / 1024).toFixed(2)} MB
-                  </div>
-                  <GlassButton
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setUploadedMask(null)
-                    }}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Remove
-                  </GlassButton>
+            <div className="space-y-2">
+              <Label>Aspect Ratio</Label>
+              <RadioGroup
+                value={aspectRatio}
+                onValueChange={(value) => setAspectRatio(value as any)}
+                className="flex flex-wrap gap-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1024x1024" id="ratio-square-edit" disabled={showUpgradeNeeded} />
+                  <Label htmlFor="ratio-square-edit">Square</Label>
                 </div>
-              ) : (
-                <>
-                  <Upload className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">
-                    Upload a mask to specify edit areas
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    PNG with transparent areas (max 4MB)
-                  </p>
-                </>
-              )}
-            </div>
-            <input
-              ref={maskInputRef}
-              type="file"
-              accept="image/png"
-              onChange={handleMaskUpload}
-              className="hidden"
-            />
-          </div>
-
-          <div className="flex justify-between items-center">
-            <GlassButton variant="ghost" size="sm" onClick={() => setShowAdvanced(!showAdvanced)} className="text-xs">
-              <Sliders className="h-3 w-3 mr-1 text-primary" />
-              {showAdvanced ? "Hide Advanced Options" : "Show Advanced Options"}
-            </GlassButton>
-          </div>
-
-          {showAdvanced && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4 pt-2"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Size</Label>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Info className="h-3 w-3 mr-1" />
-                    Output image size
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1536x1024" id="ratio-landscape-edit" disabled={showUpgradeNeeded} />
+                  <Label htmlFor="ratio-landscape-edit">Landscape</Label>
                 </div>
-                <Select value={size} onValueChange={(value) => setSize(value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1024x1024">Square (1024x1024)</SelectItem>
-                    <SelectItem value="1792x1024">Landscape (1792x1024)</SelectItem>
-                    <SelectItem value="1024x1792">Portrait (1024x1792)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Quality</Label>
-                <Select value={quality} onValueChange={(value) => setQuality(value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select quality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="hd">HD (Higher Quality)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Format</Label>
-                <Select value={format} onValueChange={(value) => setFormat(value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="png">PNG</SelectItem>
-                    <SelectItem value="jpeg">JPEG</SelectItem>
-                    <SelectItem value="webp">WebP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </motion.div>
-          )}
-
-          {error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center">
-              <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-              <div className="flex-1">{error}</div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1024x1536" id="ratio-portrait-edit" disabled={showUpgradeNeeded} />
+                  <Label htmlFor="ratio-portrait-edit">Portrait</Label>
+                </div>
+              </RadioGroup>
             </div>
-          )}
 
-          <div className="flex justify-end">
-            <GlassButton 
-              onClick={editImage} 
-              disabled={loading || !prompt.trim() || !uploadedImage} 
-              className="glossy-button"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Editing...
-                </>
-              ) : (
-                <>
-                  <ImageIcon className="mr-2 h-4 w-4" />
-                  Edit with DALL-E
-                </>
-              )}
-            </GlassButton>
+            {error && (
+              <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center">
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <div className="flex-1">{error}</div>
+                <div className="flex gap-2">
+                  {retryCount < 3 && !showUpgradeNeeded && (
+                    <GlassButton size="sm" variant="outline" onClick={handleRetry}>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Retry
+                    </GlassButton>
+                  )}
+                  {retryCount >= 3 && !showUpgradeNeeded && (
+                    <GlassButton size="sm" variant="outline" onClick={useFallbackImage}>
+                      <ImageIcon className="h-3 w-3 mr-1" />
+                      Use Fallback
+                    </GlassButton>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <GlassButton
+                onClick={generateAppStoreMockup}
+                disabled={loading || showUpgradeNeeded || !uploadedImage || !caption.trim()}
+                className="glossy-button"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Mockup
+                  </>
+                )}
+              </GlassButton>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
 
-      {generatedImage && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 space-y-3"
-        >
-          <div className="relative rounded-lg overflow-hidden glossy">
-            <img
-              src={generatedImage}
-              alt="Generated image"
-              className="w-full h-auto"
-            />
-          </div>
-          <div className="flex gap-2">
-            <GlassButton
-              onClick={useGeneratedImage}
-              className="flex-1 glossy-button"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Use This Image
-            </GlassButton>
-            <GlassButton
-              variant="outline"
-              onClick={() => {
-                const link = document.createElement('a')
-                link.href = generatedImage
-                link.download = `dall-e-${Date.now()}.${format}`
-                link.click()
-              }}
-              className="glossy-button"
-            >
-              <Download className="h-4 w-4" />
-            </GlassButton>
-          </div>
-        </motion.div>
-      )}
-
+      <AnimatePresence>
+        {generatedImage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mt-4"
+          >
+            <div className="relative rounded-lg overflow-hidden image-pop neon-border">
+              <img
+                src={generatedImage || "/placeholder.svg"}
+                alt="Generated app mockup"
+                className="w-full h-auto object-cover rounded-lg"
+                onError={(e) => {
+                  e.currentTarget.src = "/placeholder.svg?height=300&width=300"
+                  setError("Failed to load the generated image")
+                }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-end gap-2 bg-gradient-to-t from-black/50 to-transparent">
+                <GlassButton size="sm" variant="outline" onClick={useGeneratedImage} className="glossy">
+                  <Plus className="mr-1 h-3 w-3" />
+                  Use Image
+                </GlassButton>
+                <GlassButton size="sm" variant="outline" asChild className="glossy">
+                  <a
+                    href={generatedImage}
+                    download="gpt-mockup.png"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download className="mr-1 h-3 w-3" />
+                    Download
+                  </a>
+                </GlassButton>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Render the premium modal */}
       <PremiumModal />
     </GlassCard>
   )
