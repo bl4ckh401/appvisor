@@ -15,26 +15,41 @@ export default async function DashboardPage() {
   // Get current user
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    return <div>Please log in to view your dashboard</div>
+  if (userError || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
+          <p className="text-muted-foreground mb-6">Please log in to view your dashboard</p>
+          <Link href="/auth">
+            <ModernButton variant="gradient">Sign In</ModernButton>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
-  // Fetch user's projects
-  const { data: projects } = await supabase
+  // Fetch user's projects with error handling
+  const { data: projects, error: projectsError } = await supabase
     .from("projects")
     .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
-  // Fetch user's recent mockups
-  const { data: mockups } = await supabase
+  // Fetch user's recent mockups with error handling
+  const { data: mockups, error: mockupsError } = await supabase
     .from("mockups")
     .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(6)
+
+  // Handle potential errors gracefully
+  const safeProjects = projectsError ? [] : projects || []
+  const safeMockups = mockupsError ? [] : mockups || []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -51,7 +66,16 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats Overview */}
-        <DashboardStats projects={projects} mockups={mockups} />
+        <DashboardStats projects={safeProjects} mockups={safeMockups} />
+
+        {/* Error Messages */}
+        {(projectsError || mockupsError) && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800 text-sm">
+              Some data couldn't be loaded. Please refresh the page or try again later.
+            </p>
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -67,18 +91,21 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {projects && projects.length > 0 ? (
+            {safeProjects.length > 0 ? (
               <div className="grid gap-4">
-                {projects.slice(0, 3).map((project) => (
+                {safeProjects.slice(0, 3).map((project) => (
                   <ModernCard key={project.id} variant="glass" interactive className="p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2">{project.name}</h3>
+                        <h3 className="font-semibold text-lg mb-2">{project.name || "Untitled Project"}</h3>
                         <p className="text-muted-foreground text-sm mb-4">
                           {project.description || "No description provided"}
                         </p>
                         <div className="flex items-center text-xs text-muted-foreground">
-                          <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
+                          <span>
+                            Created{" "}
+                            {project.created_at ? new Date(project.created_at).toLocaleDateString() : "Unknown date"}
+                          </span>
                         </div>
                       </div>
                       <div className="flex space-x-2">
@@ -117,7 +144,7 @@ export default async function DashboardPage() {
             <QuickActions />
 
             {/* Recent Activity */}
-            <RecentActivity mockups={mockups} />
+            <RecentActivity mockups={safeMockups} />
           </div>
         </div>
       </div>
