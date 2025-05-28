@@ -1,151 +1,156 @@
-import { createClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
-import Link from "next/link"
-import { ModernCard } from "@/components/ui/modern-card"
-import { ModernButton } from "@/components/ui/modern-button"
-import { Plus, ArrowRight, ImageIcon, Settings } from "lucide-react"
+"use client"
+
+import { useEffect, useState } from "react"
+import { motion } from "framer-motion"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { QuickActions } from "@/components/dashboard/quick-actions"
+import { RecentActivity } from "@/components/dashboard/recent-activity"
 
-export default async function DashboardPage() {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+export default function DashboardPage() {
+  const [projects, setProjects] = useState<any[]>([])
+  const [mockups, setMockups] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Get current user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  const supabase = createClientComponentClient()
 
-  if (userError || !user) {
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Get current user
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser()
+
+        if (userError) {
+          throw new Error("Authentication required")
+        }
+
+        if (!user) {
+          setError("Please sign in to view your dashboard")
+          return
+        }
+
+        // Load projects and mockups with error handling
+        const [projectsResult, mockupsResult] = await Promise.allSettled([
+          supabase.from("projects").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+          supabase.from("mockups").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        ])
+
+        // Handle projects result
+        if (projectsResult.status === "fulfilled" && projectsResult.value.data) {
+          setProjects(projectsResult.value.data)
+        } else {
+          console.warn(
+            "Failed to load projects:",
+            projectsResult.status === "rejected" ? projectsResult.reason : "No data",
+          )
+          setProjects([])
+        }
+
+        // Handle mockups result
+        if (mockupsResult.status === "fulfilled" && mockupsResult.value.data) {
+          setMockups(mockupsResult.value.data)
+        } else {
+          console.warn(
+            "Failed to load mockups:",
+            mockupsResult.status === "rejected" ? mockupsResult.reason : "No data",
+          )
+          setMockups([])
+        }
+      } catch (err) {
+        console.error("Dashboard error:", err)
+        setError(err instanceof Error ? err.message : "Failed to load dashboard data")
+        // Set empty arrays as fallbacks
+        setProjects([])
+        setMockups([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboardData()
+  }, [supabase])
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
-          <p className="text-muted-foreground mb-6">Please log in to view your dashboard</p>
-          <Link href="/auth">
-            <ModernButton variant="gradient">Sign In</ModernButton>
-          </Link>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-white/10 rounded-lg w-64"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-white/10 rounded-2xl"></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="h-96 bg-white/10 rounded-2xl"></div>
+              <div className="h-96 bg-white/10 rounded-2xl"></div>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Fetch user's projects with error handling
-  const { data: projects, error: projectsError } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-
-  // Fetch user's recent mockups with error handling
-  const { data: mockups, error: mockupsError } = await supabase
-    .from("mockups")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(6)
-
-  // Handle potential errors gracefully
-  const safeProjects = projectsError ? [] : projects || []
-  const safeMockups = mockupsError ? [] : mockups || []
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto py-8 px-4 md:px-6 space-y-8">
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-bold gradient-text mb-2">Welcome back!</h1>
-            <p className="text-muted-foreground text-lg">Here's what's happening with your projects today.</p>
-          </div>
-          <ModernButton variant="gradient" icon={<Plus className="h-5 w-5" />} asChild>
-            <Link href="/projects/new">New Project</Link>
-          </ModernButton>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="space-y-2"
+        >
+          <h1 className="text-4xl font-bold text-foreground">Welcome back! 👋</h1>
+          <p className="text-xl text-muted-foreground">Here's what's happening with your projects today.</p>
+        </motion.div>
 
-        {/* Stats Overview */}
-        <DashboardStats projects={safeProjects} mockups={safeMockups} />
-
-        {/* Error Messages */}
-        {(projectsError || mockupsError) && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 text-sm">
-              Some data couldn't be loaded. Please refresh the page or try again later.
-            </p>
-          </div>
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-destructive/10 border border-destructive/20 rounded-lg p-4"
+          >
+            <p className="text-destructive">{error}</p>
+          </motion.div>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Projects Section */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Recent Projects</h2>
-              <Link href="/projects">
-                <ModernButton variant="ghost" size="sm">
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </ModernButton>
-              </Link>
-            </div>
+        {/* Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <DashboardStats projects={projects} mockups={mockups} />
+        </motion.div>
 
-            {safeProjects.length > 0 ? (
-              <div className="grid gap-4">
-                {safeProjects.slice(0, 3).map((project) => (
-                  <ModernCard key={project.id} variant="glass" interactive className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2">{project.name || "Untitled Project"}</h3>
-                        <p className="text-muted-foreground text-sm mb-4">
-                          {project.description || "No description provided"}
-                        </p>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <span>
-                            Created{" "}
-                            {project.created_at ? new Date(project.created_at).toLocaleDateString() : "Unknown date"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <ModernButton variant="ghost" size="sm" asChild>
-                          <Link href={`/projects/${project.id}/settings`}>
-                            <Settings className="h-4 w-4" />
-                          </Link>
-                        </ModernButton>
-                        <ModernButton variant="secondary" size="sm" asChild>
-                          <Link href={`/projects/${project.id}`}>
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        </ModernButton>
-                      </div>
-                    </div>
-                  </ModernCard>
-                ))}
-              </div>
-            ) : (
-              <ModernCard variant="glass" className="p-12 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">No projects yet</h3>
-                <p className="text-muted-foreground mb-6">Create your first project to start generating app mockups</p>
-                <ModernButton variant="gradient" icon={<Plus className="h-5 w-5" />} asChild>
-                  <Link href="/projects/new">Create Project</Link>
-                </ModernButton>
-              </ModernCard>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Quick Actions */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
             <QuickActions />
+          </motion.div>
 
-            {/* Recent Activity */}
-            <RecentActivity mockups={safeMockups} />
-          </div>
+          {/* Recent Activity */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <RecentActivity mockups={mockups} />
+          </motion.div>
         </div>
       </div>
     </div>

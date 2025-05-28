@@ -3,30 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import {
-  ArrowRight,
-  Sparkles,
-  Star,
-  CheckCircle,
-  Zap,
-  Palette,
-  Users,
-  Upload,
-  Monitor,
-  Shield,
-  Clock,
-  Target,
-  TrendingUp,
-  Code,
-  Layers,
-  Edit3,
-  BarChart3,
-  Workflow,
-  Brain,
-  Wand2,
-  Settings,
-  Cloud,
-} from "lucide-react"
+import { ArrowRight, Sparkles, Star, Zap, Palette, Upload, Edit3, Brain, Wand2 } from "lucide-react"
 import { ModernCard } from "@/components/ui/modern-card"
 import { ModernButton } from "@/components/ui/modern-button"
 
@@ -99,8 +76,8 @@ export default function LandingPage() {
       <section className="relative overflow-hidden pt-20 pb-16 md:pt-32 md:pb-24">
         {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl float-animation" />
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/20 rounded-full blur-3xl float-animation" />
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/20 rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-radial from-primary/10 to-transparent rounded-full blur-2xl" />
         </div>
 
@@ -125,7 +102,11 @@ export default function LandingPage() {
 
               <motion.div variants={fadeInUp} className="space-y-6">
                 <h1 className="text-5xl sm:text-6xl xl:text-7xl font-bold tracking-tight leading-tight">
-                  Transform App Screenshots into <span className="gradient-text">Professional</span> Store Listings
+                  Transform App Screenshots into{" "}
+                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    Professional
+                  </span>{" "}
+                  Store Listings
                 </h1>
 
                 <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
@@ -176,7 +157,7 @@ export default function LandingPage() {
             >
               <div className="relative">
                 {/* Main mockup display */}
-                <ModernCard variant="glass" className="p-8 glow-lg">
+                <ModernCard variant="glass" className="p-8">
                   <div className="aspect-[9/16] max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
                     <img
                       src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot_20250422_213402_Google%20Play%20Store.jpg-PYCiYQRDL5MUCFqlPz1LEMdUDlRMvJ.jpeg"
@@ -188,7 +169,7 @@ export default function LandingPage() {
 
                 {/* Floating elements */}
                 <motion.div
-                  className="absolute -top-6 -left-6 w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-2xl shadow-glow flex items-center justify-center float-animation"
+                  className="absolute -top-6 -left-6 w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-2xl shadow-lg flex items-center justify-center"
                   initial={{ opacity: 0, x: -50 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 0.8 }}
@@ -197,7 +178,7 @@ export default function LandingPage() {
                 </motion.div>
 
                 <motion.div
-                  className="absolute -bottom-6 -right-6 w-20 h-20 bg-gradient-to-br from-accent to-primary rounded-2xl shadow-glow flex items-center justify-center float-animation"
+                  className="absolute -bottom-6 -right-6 w-20 h-20 bg-gradient-to-br from-accent to-primary rounded-2xl shadow-lg flex items-center justify-center"
                   initial={{ opacity: 0, x: 50 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 1 }}
@@ -221,7 +202,10 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
           >
             <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              <span className="gradient-text">Core Functionalities</span> That Drive Results
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Core Functionalities
+              </span>{" "}
+              That Drive Results
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Discover the powerful features that make AppVisor the go-to platform for app store optimization
@@ -240,7 +224,6 @@ export default function LandingPage() {
                 >
                   <ModernCard
                     variant={activeFeature === index ? "gradient" : "glass"}
-                    interactive
                     className={`p-6 cursor-pointer transition-all duration-300 ${
                       activeFeature === index ? "scale-105" : ""
                     }`}
@@ -249,7 +232,9 @@ export default function LandingPage() {
                     <div className="flex items-start space-x-4">
                       <div
                         className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          activeFeature === index ? "bg-white/20 text-white" : "bg-gradient-primary text-white"
+                          activeFeature === index
+                            ? "bg-white/20 text-white"
+                            : "bg-gradient-to-r from-primary to-accent text-white"
                         }`}
                       >
                         {feature.icon}
@@ -281,7 +266,7 @@ export default function LandingPage() {
             >
               <ModernCard variant="glass" className="p-8">
                 <div className="space-y-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center text-white">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white">
                     {coreFeatures[activeFeature].icon}
                   </div>
                   <div>
@@ -300,502 +285,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* User Interface & Experience Section */}
-      <section className="py-24 bg-gradient-to-r from-primary/5 to-accent/5">
-        <div className="container px-4 md:px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Intuitive <span className="gradient-text">User Interface</span> Design
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Experience a beautifully crafted interface that makes complex design tasks simple and enjoyable
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: <Monitor className="h-8 w-8" />,
-                title: "Responsive Design",
-                description: "Works flawlessly across desktop, tablet, and mobile devices with adaptive layouts.",
-                highlight: "Cross-Platform",
-              },
-              {
-                icon: <Layers className="h-8 w-8" />,
-                title: "Drag & Drop Interface",
-                description: "Intuitive drag-and-drop functionality for effortless file uploads and organization.",
-                highlight: "User-Friendly",
-              },
-              {
-                icon: <Settings className="h-8 w-8" />,
-                title: "Real-Time Preview",
-                description: "See changes instantly with live preview as you customize your mockups.",
-                highlight: "Instant Feedback",
-              },
-              {
-                icon: <Workflow className="h-8 w-8" />,
-                title: "Streamlined Workflow",
-                description: "Optimized user journey from upload to export with minimal clicks required.",
-                highlight: "Efficient",
-              },
-              {
-                icon: <Shield className="h-8 w-8" />,
-                title: "Secure & Private",
-                description: "Enterprise-grade security with encrypted file storage and privacy protection.",
-                highlight: "Trusted",
-              },
-              {
-                icon: <Clock className="h-8 w-8" />,
-                title: "Auto-Save",
-                description: "Never lose your work with automatic saving and version history tracking.",
-                highlight: "Reliable",
-              },
-            ].map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-              >
-                <ModernCard variant="glass" interactive className="p-8 h-full">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center text-white">
-                        {feature.icon}
-                      </div>
-                      <span className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
-                        {feature.highlight}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-semibold">{feature.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                  </div>
-                </ModernCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Target Audience Section */}
-      <section className="py-24">
-        <div className="container px-4 md:px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Built for <span className="gradient-text">Every Creator</span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Whether you're a solo developer or part of a large team, AppVisor adapts to your needs
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: <Code className="h-12 w-12" />,
-                title: "Indie Developers",
-                description: "Solo developers who need professional mockups without design expertise",
-                benefits: ["Quick turnaround", "Cost-effective", "No design skills needed"],
-                color: "from-blue-500 to-cyan-500",
-              },
-              {
-                icon: <Users className="h-12 w-12" />,
-                title: "Design Teams",
-                description: "Creative teams looking to streamline their app store asset creation",
-                benefits: ["Team collaboration", "Brand consistency", "Bulk generation"],
-                color: "from-purple-500 to-pink-500",
-              },
-              {
-                icon: <TrendingUp className="h-12 w-12" />,
-                title: "Marketing Agencies",
-                description: "Agencies managing multiple app clients and campaigns",
-                benefits: ["Client management", "White labeling", "Scalable solutions"],
-                color: "from-green-500 to-emerald-500",
-              },
-              {
-                icon: <Target className="h-12 w-12" />,
-                title: "Enterprise",
-                description: "Large organizations with complex app portfolios",
-                benefits: ["Enterprise security", "API integration", "Custom solutions"],
-                color: "from-orange-500 to-red-500",
-              },
-            ].map((audience, index) => (
-              <motion.div
-                key={audience.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-              >
-                <ModernCard variant="glass" interactive className="p-8 h-full">
-                  <div className="space-y-6">
-                    <div
-                      className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${audience.color} flex items-center justify-center text-white`}
-                    >
-                      {audience.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold mb-3">{audience.title}</h3>
-                      <p className="text-muted-foreground mb-4">{audience.description}</p>
-                    </div>
-                    <div className="space-y-2">
-                      {audience.benefits.map((benefit) => (
-                        <div key={benefit} className="flex items-center text-sm">
-                          <CheckCircle className="h-4 w-4 text-primary mr-2" />
-                          <span>{benefit}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </ModernCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Integrations Section */}
-      <section className="py-24 bg-gradient-to-r from-primary/5 to-accent/5">
-        <div className="container px-4 md:px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Seamless <span className="gradient-text">Integrations</span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Connect with your favorite tools and platforms for a streamlined workflow
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
-            {integrations.map((integration, index) => (
-              <motion.div
-                key={integration.name}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-              >
-                <ModernCard variant="glass" interactive className="p-6 text-center">
-                  <div className="space-y-3">
-                    <img
-                      src={integration.logo || "/placeholder.svg"}
-                      alt={integration.name}
-                      className="w-12 h-12 mx-auto rounded-lg"
-                    />
-                    <h3 className="font-semibold text-sm">{integration.name}</h3>
-                    <p className="text-xs text-muted-foreground">{integration.description}</p>
-                  </div>
-                </ModernCard>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <ModernButton variant="secondary" size="lg">
-              <Cloud className="h-5 w-5 mr-2" />
-              View All Integrations
-            </ModernButton>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="py-24">
-        <div className="container px-4 md:px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Why Choose <span className="gradient-text">AppVisor?</span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Discover the competitive advantages that make AppVisor the preferred choice for app store optimization
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              className="space-y-8"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              {[
-                {
-                  icon: <Clock className="h-6 w-6" />,
-                  title: "Save 90% of Your Time",
-                  description:
-                    "What used to take hours now takes minutes. Focus on building great apps, not creating marketing assets.",
-                  metric: "90% faster",
-                },
-                {
-                  icon: <TrendingUp className="h-6 w-6" />,
-                  title: "Increase Conversion Rates",
-                  description:
-                    "Professional mockups increase app store conversion rates by up to 35% compared to basic screenshots.",
-                  metric: "+35% conversion",
-                },
-                {
-                  icon: <BarChart3 className="h-6 w-6" />,
-                  title: "Boost Download Numbers",
-                  description:
-                    "Apps with high-quality store listings see 3x more downloads than those with basic presentations.",
-                  metric: "3x more downloads",
-                },
-                {
-                  icon: <Shield className="h-6 w-6" />,
-                  title: "Enterprise-Grade Security",
-                  description:
-                    "Your app data is protected with bank-level encryption and compliance with international standards.",
-                  metric: "100% secure",
-                },
-              ].map((benefit, index) => (
-                <motion.div
-                  key={benefit.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                >
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center text-white flex-shrink-0">
-                      {benefit.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl font-semibold">{benefit.title}</h3>
-                        <span className="text-sm font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
-                          {benefit.metric}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground leading-relaxed">{benefit.description}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            <motion.div
-              className="relative"
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <ModernCard variant="gradient" className="p-8">
-                <div className="space-y-6 text-white">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold mb-2">Success Stories</h3>
-                    <p className="text-white/90">Real results from real customers</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold">2,500+</div>
-                      <div className="text-sm text-white/80">Happy Developers</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold">50K+</div>
-                      <div className="text-sm text-white/80">Mockups Created</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold">98%</div>
-                      <div className="text-sm text-white/80">Satisfaction Rate</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold">24/7</div>
-                      <div className="text-sm text-white/80">Support Available</div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-white/20 pt-6">
-                    <blockquote className="text-center">
-                      <p className="text-white/90 italic mb-3">
-                        "AppVisor transformed our app store presence. Downloads increased by 200% in the first month!"
-                      </p>
-                      <footer className="text-sm text-white/70">— Sarah Chen, Lead Developer at TechStart</footer>
-                    </blockquote>
-                  </div>
-                </div>
-              </ModernCard>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      {showPricing && (
-        <motion.section
-          className="py-16 bg-gradient-to-r from-primary/5 to-accent/5"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="container px-4 md:px-6">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
-              <p className="text-xl text-muted-foreground">Choose the plan that works best for you</p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {/* Free Plan */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-              >
-                <ModernCard variant="glass" className="p-8 h-full">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-bold">Free</h3>
-                      <div className="mt-2">
-                        <span className="text-4xl font-bold">$0</span>
-                        <span className="text-muted-foreground">/month</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {["5 mockups per month", "Basic templates", "Standard exports", "Community support"].map(
-                        (feature) => (
-                          <div key={feature} className="flex items-center">
-                            <CheckCircle className="h-5 w-5 text-primary mr-3" />
-                            <span className="text-sm">{feature}</span>
-                          </div>
-                        ),
-                      )}
-                    </div>
-
-                    <ModernButton variant="secondary" className="w-full" asChild>
-                      <Link href="/auth">Get Started</Link>
-                    </ModernButton>
-                  </div>
-                </ModernCard>
-              </motion.div>
-
-              {/* Pro Plan */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <ModernCard variant="gradient" className="p-8 h-full relative">
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <div className="bg-accent px-4 py-1 rounded-full text-xs font-medium text-white">Most Popular</div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-bold">Pro</h3>
-                      <div className="mt-2">
-                        <span className="text-4xl font-bold">$19</span>
-                        <span className="text-white/80">/month</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {[
-                        "Unlimited mockups",
-                        "All templates",
-                        "All export formats",
-                        "Bulk generation",
-                        "Priority support",
-                      ].map((feature) => (
-                        <div key={feature} className="flex items-center">
-                          <CheckCircle className="h-5 w-5 text-white mr-3" />
-                          <span className="text-sm text-white">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <ModernButton
-                      variant="secondary"
-                      className="w-full bg-white/20 hover:bg-white/30 text-white border-white/20"
-                      asChild
-                    >
-                      <Link href="/subscribe?plan=pro">Start Free Trial</Link>
-                    </ModernButton>
-                  </div>
-                </ModernCard>
-              </motion.div>
-
-              {/* Team Plan */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-              >
-                <ModernCard variant="glass" className="p-8 h-full">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-bold">Team</h3>
-                      <div className="mt-2">
-                        <span className="text-4xl font-bold">$49</span>
-                        <span className="text-muted-foreground">/month</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {[
-                        "Everything in Pro",
-                        "Team collaboration",
-                        "Advanced bulk generation",
-                        "API access",
-                        "White labeling",
-                      ].map((feature) => (
-                        <div key={feature} className="flex items-center">
-                          <CheckCircle className="h-5 w-5 text-primary mr-3" />
-                          <span className="text-sm">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <ModernButton variant="secondary" className="w-full" asChild>
-                      <Link href="/subscribe?plan=team">Start Free Trial</Link>
-                    </ModernButton>
-                  </div>
-                </ModernCard>
-              </motion.div>
-            </div>
-          </div>
-        </motion.section>
-      )}
-
       {/* CTA Section */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20" />
@@ -809,7 +298,10 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
           >
             <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Ready to Transform Your <span className="gradient-text">App Store Presence?</span>
+              Ready to Transform Your{" "}
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                App Store Presence?
+              </span>
             </h2>
             <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
               Join thousands of developers and designers who are creating stunning app store listings with AppVisor.
