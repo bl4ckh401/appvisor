@@ -147,7 +147,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
           model: "gpt-image-1",
           size: aspectRatio,
           quality: "high",
-          output_format: "png",
+          format: "png",
           background: "auto",
         }),
       })
@@ -158,22 +158,12 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         throw new Error(data.error || `Failed to generate image: ${response.status} ${response.statusText}`)
       }
 
-      if (!data.b64_json && !data.data?.[0]?.b64_json && !data.url) {
-        throw new Error("No image data returned from the API")
+      // The API returns a URL directly
+      if (!data.url) {
+        throw new Error("No image URL returned from the API")
       }
 
-      // Handle different response formats
-      let imageUrl;
-      if (data.b64_json) {
-        imageUrl = `data:image/png;base64,${data.b64_json}`;
-      } else if (data.data?.[0]?.b64_json) {
-        imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-      } else if (data.url) {
-        imageUrl = data.url;
-      } else if (data.data?.[0]?.url) {
-        imageUrl = data.data[0].url;
-      }
-      setGeneratedImage(imageUrl)
+      setGeneratedImage(data.url)
       setRetryCount(0) // Reset retry count on success
       
       // Update usage stats
@@ -262,22 +252,12 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         throw new Error(data.error || `Failed to generate mockup: ${response.status} ${response.statusText}`)
       }
 
-      if (!data.b64_json && !data.data?.[0]?.b64_json && !data.url) {
-        throw new Error("No image data returned from the API")
+      // The API returns a URL directly
+      if (!data.url) {
+        throw new Error("No image URL returned from the API")
       }
 
-      // Handle different response formats
-      let imageUrl;
-      if (data.b64_json) {
-        imageUrl = `data:image/png;base64,${data.b64_json}`;
-      } else if (data.data?.[0]?.b64_json) {
-        imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-      } else if (data.url) {
-        imageUrl = data.url;
-      } else if (data.data?.[0]?.url) {
-        imageUrl = data.data[0].url;
-      }
-      setGeneratedImage(imageUrl)
+      setGeneratedImage(data.url)
       setRetryCount(0) // Reset retry count on success
       
       // Update usage stats

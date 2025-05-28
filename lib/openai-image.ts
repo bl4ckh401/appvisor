@@ -5,6 +5,8 @@ import { cookies } from "next/headers"
 import { Buffer } from "buffer"
 import { uploadToStorage } from "@/lib/supabase/storage-utils"
 import { generateRequestId } from "@/lib/error-monitoring"
+import { toFile } from "openai"
+
 
 // Types for image generation options
 type ImageFormat = "png" | "jpeg" | "webp"
@@ -197,6 +199,7 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
   }
 }
 
+
 /**
  * Edit an image using OpenAI's GPT-Image model
  */
@@ -209,68 +212,76 @@ export async function editImageWithGPT(options: any): Promise<ImageResult> {
 
     // Set default values for optional parameters
     const size = options.size || "1024x1024"
-    const quality = options.quality || "auto"
+    const quality = options.quality || "high"
     const format = options.format || "png"
     const background = options.background || (format === "png" ? "transparent" : "opaque")
 
     // Convert File object(s) to OpenAI file format
-    let images: any[]
+    let openAIFiles: any[]
     if (Array.isArray(options.image)) {
-      // Handle multiple images
-      images = await Promise.all(
-        options.image.map(async (img) => {
+      // Handle multiple images for gpt-image-1
+      openAIFiles = await Promise.all(
+        options.image.map(async (img: File) => {
           const buffer = Buffer.from(await img.arrayBuffer())
-          return buffer
-        }),
+          return await toFile(buffer, img.name || "image.png", {
+            type: img.type || "image/png"
+          })
+        })
       )
     } else {
       // Handle single image
       const buffer = Buffer.from(await options.image.arrayBuffer())
-      images = [buffer]
+      const openAIFile = await toFile(buffer, options.image.name || "image.png", {
+        type: options.image.type || "image/png"
+      })
+      openAIFiles = [openAIFile]
     }
 
     // Prepare mask if provided
-    let mask: Buffer | undefined
+    let maskFile: any = undefined
     if (options.mask) {
-      mask = Buffer.from(await options.mask.arrayBuffer())
+      const maskBuffer = Buffer.from(await options.mask.arrayBuffer())
+      maskFile = await toFile(maskBuffer, options.mask.name || "mask.png", {
+        type: "image/png"
+      })
     }
 
     // Create image edit parameters
     const params: any = {
       model: "gpt-image-1", // Using the gpt-image-1 model
       prompt: options.prompt,
-      image: images,
-      response_format: "b64_json",
+      image: openAIFiles.length === 1 ? openAIFiles[0] : openAIFiles,
+      n: 1,
       size,
       quality,
     }
 
     // Add mask if provided
-    if (mask) {
-      params.mask = mask
+    if (maskFile) {
+      params.mask = maskFile
     }
 
-    // Add optional parameters if provided
+    // Add background if specified
     if (background && background !== "auto") {
       params.background = background
     }
 
+    // Add format
+    if (format) {
+      params.output_format = format
+    }
+
     // Add compression for jpeg and webp formats
     if ((format === "jpeg" || format === "webp") && typeof options.outputCompression === "number") {
-      params.output_compression = options.outputCompression / 100 // Convert percentage to decimal
+      params.output_compression = options.outputCompression
     }
 
     // Edit the image
-    console.log(`Calling OpenAI API with edit params - RequestID: ${requestId}:`, {
-      ...params,
-      prompt: params.prompt.substring(0, 100) + (params.prompt.length > 100 ? "..." : ""),
-      image: "<<image buffer(s)>>",
-      mask: mask ? "<<mask buffer>>" : undefined,
-    })
+    console.log(`Calling OpenAI API with edit params - RequestID: ${requestId}`)
 
     const response = await openai.images.edit(params)
 
-    if (!response.data[0].b64_json) {
+    if (!response.data || response.data.length === 0 || !response.data[0].b64_json) {
       throw new Error("No image data returned from the API")
     }
 
