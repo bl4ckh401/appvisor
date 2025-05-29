@@ -3,9 +3,10 @@ import { editImageWithGPT } from "@/lib/openai-image"
 import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import { trackFeatureUsage } from "@/lib/usage-tracking"
+import { uploadBase64ToStorage } from "@/lib/storage"
 
 // Mark this file as server-side only
-export const runtime = "nodejs" // 'edge' or 'nodejs'
+export const runtime = "nodejs"
 
 // Mock planFeatures for testing purposes
 const planFeatures = {
@@ -30,10 +31,10 @@ export async function POST(request: NextRequest) {
     // Get form data
     const formData = await request.formData()
     const prompt = formData.get("prompt") as string
-    const size = formData.get("size") as string
-    const quality = formData.get("quality") as string
-    const format = formData.get("format") as string
-    const background = formData.get("background") as string
+    const size = (formData.get("size") as string) || "1024x1536" // Default to portrait
+    const quality = (formData.get("quality") as string) || "auto"
+    const format = (formData.get("format") as string) || "png"
+    const background = (formData.get("background") as string) || "auto"
     const outputCompression = formData.get("outputCompression")
       ? Number.parseInt(formData.get("outputCompression") as string)
       : undefined
@@ -126,8 +127,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: result.error }, { status: 500 })
       }
 
+      // If we have base64 data, upload it to storage
+      let finalUrl = result.url
+      if (result.base64Data) {
+        const uploadResult = await uploadBase64ToStorage(
+          result.base64Data,
+          "generated-images",
+          `gpt-edit-${userId}-${Date.now()}.png`,
+        )
+
+        if ("url" in uploadResult) {
+          finalUrl = uploadResult.url
+        } else {
+          console.error("Failed to upload to storage:", uploadResult.error)
+          // Continue with original URL if storage upload fails
+        }
+      }
+
       // Return the image URL
-      return NextResponse.json({ url: result.url })
+      return NextResponse.json({ url: finalUrl })
     } catch (error: any) {
       console.error("Error editing image with GPT Image:", error)
       return NextResponse.json(
