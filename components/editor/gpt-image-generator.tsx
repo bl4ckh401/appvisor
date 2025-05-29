@@ -236,10 +236,10 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       const formData = new FormData()
       formData.append("image", imageFile)
       formData.append("prompt", mockupPrompt)
-      formData.append("size", "1024x1024") // Edit only supports 1024x1024
+      formData.append("size", aspectRatio) // Use the user-selected aspect ratio
       formData.append("quality", "high")
-      formData.append("format", "png")
-      formData.append("background", "auto")
+      formData.append("format", "png") // Output format for saving
+      formData.append("background", "auto") // Let model decide best background
 
       const response = await fetch("/api/gpt-image/edit", {
         method: "POST",

@@ -7,7 +7,6 @@ import { uploadToStorage } from "@/lib/supabase/storage-utils"
 import { generateRequestId } from "@/lib/error-monitoring"
 import { toFile } from "openai"
 
-
 // Types for image generation options
 type ImageFormat = "png" | "jpeg" | "webp"
 type ImageQuality = "low" | "medium" | "high" | "auto"
@@ -62,13 +61,13 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
     // Get OpenAI client
     const openai = getOpenAIClient()
 
-    // Extract and validate options
+    // Extract and validate options - respect user's selections
     const {
       prompt,
       size = "1024x1024",
       quality = "medium",
       format = "png",
-      background = format === "png" ? "transparent" : "opaque",
+      background = options.background || (format === "png" ? "transparent" : "opaque"), // Use provided background if available
       outputCompression,
     } = options
 
@@ -101,22 +100,16 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
       n: 1,
       size,
       quality,
+      response_format: "b64_json", // gpt-image-1 always returns b64_json
     }
 
-    // Add output format if specified
-    if (format) {
-      params.output_format = format
-    }
-
-    // Add background if specified
+    // Add background if specified (only for gpt-image-1)
     if (background && background !== "auto") {
       params.background = background
     }
 
-    // Add compression for jpeg and webp formats
-    if ((format === "jpeg" || format === "webp") && typeof outputCompression === "number") {
-      params.output_compression = outputCompression
-    }
+    // Note: output_format and output_compression are generation-only parameters
+    // They are not part of the API request but used for post-processing
 
     console.log(
       `Sending request to OpenAI API - RequestID: ${requestId}`,
@@ -199,7 +192,6 @@ export async function generateImageWithGPT(options: GenerateImageOptions): Promi
   }
 }
 
-
 /**
  * Edit an image using OpenAI's GPT-Image model
  */
@@ -210,11 +202,13 @@ export async function editImageWithGPT(options: any): Promise<ImageResult> {
 
     console.log(`Starting image edit with GPT-Image-1 - RequestID: ${requestId}`)
 
-    // Set default values for optional parameters
+    // Use the provided values from options, with sensible defaults only if not provided
     const size = options.size || "1024x1024"
-    const quality = options.quality || "high"
-    const format = options.format || "png"
-    const background = options.background || (format === "png" ? "transparent" : "opaque")
+    const quality = options.quality || "high" // high, medium, low for gpt-image-1
+    const format = options.format || "png" // For the output file, not API parameter
+    const background = options.background || "auto" // transparent, opaque, or auto
+
+    console.log(`Edit parameters - size: ${size}, quality: ${quality}, format: ${format}, background: ${background} - RequestID: ${requestId}`)
 
     // Convert File object(s) to OpenAI file format
     let openAIFiles: any[]
@@ -252,7 +246,7 @@ export async function editImageWithGPT(options: any): Promise<ImageResult> {
       prompt: options.prompt,
       image: openAIFiles.length === 1 ? openAIFiles[0] : openAIFiles,
       n: 1,
-      size,
+      size, // Use the user-selected size
       quality,
     }
 
@@ -261,24 +255,27 @@ export async function editImageWithGPT(options: any): Promise<ImageResult> {
       params.mask = maskFile
     }
 
-    // Add background if specified
+    // Add background if specified (only for gpt-image-1)
     if (background && background !== "auto") {
       params.background = background
     }
 
-    // Add format
-    if (format) {
-      params.output_format = format
-    }
-
-    // Add compression for jpeg and webp formats
-    if ((format === "jpeg" || format === "webp") && typeof options.outputCompression === "number") {
-      params.output_compression = options.outputCompression
-    }
+    // Note: output_format and output_compression are not supported for edit endpoint
+    // gpt-image-1 always returns b64_json for edits
 
     // Edit the image
     console.log(`Calling OpenAI API with edit params - RequestID: ${requestId}`)
+    console.log("Edit params being sent:", {
+      model: params.model,
+      size: params.size,
+      quality: params.quality,
+      background: params.background,
+      hasImage: !!params.image,
+      hasMask: !!params.mask,
+      promptPreview: params.prompt.substring(0, 50) + "..."
+    })
 
+    // Note: gpt-image-1 always returns b64_json, not URLs
     const response = await openai.images.edit(params)
 
     if (!response.data || response.data.length === 0 || !response.data[0].b64_json) {
