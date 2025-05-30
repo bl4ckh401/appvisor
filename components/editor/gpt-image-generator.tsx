@@ -222,10 +222,21 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         // Continue with generation even if tracking fails
       }
 
-      const mockupPrompt = `Edit this app screenshot to create a professional app store mockup. Add the caption "${caption}" at the top in large, bold text. 
-      Apply a ${style === "gradient" ? "gradient" : "solid"} background using ${backgroundColor} as the primary color. 
-      Make the screenshot appear to float with 3D perspective and realistic shadows.
-      Add professional polish similar to Apple App Store or Google Play Store featured screenshots.`
+      const mockupPrompt = `Design an absolutely stunning app store hero image that makes people stop scrolling.
+
+"${caption}" - Make this headline HUGE and BOLD. Think Apple Keynote style. Give it presence and weight.
+
+The screenshot should look like it's floating in a beautiful ${style === "gradient" ? `gradient space using ${backgroundColor} as the starting point - make it flow like silk, with colors that complement and enhance` : `solid ${backgroundColor} environment with subtle lighting that makes everything glow`}.
+
+Make the phone/tablet look premium and expensive - like it's worth $1000+. Add those sexy shadows and reflections that make it feel tangible. The device should feel like it's popping off the screen.
+
+Style inspiration: 
+- Apple's app store features
+- Stripe's marketing pages  
+- Linear's product shots
+- Spotify's year-end campaigns
+
+This should look like a team of designers spent a week perfecting it. Every pixel should be intentional. The kind of image that makes other designers jealous.`
 
       // Convert data URL to File object for the API
       const imageResponse = await fetch(uploadedImage);
