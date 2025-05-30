@@ -57,6 +57,16 @@ export default function EditorPage() {
   const [activeTab, setActiveTab] = useState("mockup")
   const mockupRef = useRef(null)
   const supabase = createClient()
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
+
+// Add this function to handle image load
+const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+  const img = event.currentTarget
+  setImageDimensions({
+    width: img.naturalWidth,
+    height: img.naturalHeight
+  })
+}
 
   // Load template or project data
   useEffect(() => {
@@ -442,25 +452,31 @@ export default function EditorPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="flex flex-col items-center">
+            {mockupImage && mockupImage !== "/placeholder.svg" ? (
             <div
               ref={mockupRef}
               className="rounded-lg shadow-lg relative neon-border image-pop"
               style={{
-                width: isMobile ? 280 : 300,
-                height: isMobile ? 560 : 600,
+                width: imageDimensions?.width || 'auto',
+                height: imageDimensions?.height || 'auto',
                 backgroundColor: backgroundColor,
                 overflow: "hidden",
+                display: imageDimensions ? 'block' : 'inline-block', // inline-block while loading to fit content
               }}
             >
               <img
-                src={mockupImage || "/placeholder.svg"}
+                src={mockupImage}
                 alt="App Screenshot"
                 className="w-full h-full object-cover"
+                onLoad={handleImageLoad}
                 onError={(e) => {
-                  e.currentTarget.src = "/placeholder.svg?height=600&width=300"
+                  // Just hide the image if it errors, no placeholder
+                  setMockupImage(null)
+                  setImageDimensions(null)
                 }}
               />
             </div>
+          ) : null}
 
             {/* Generated Mockups Gallery */}
             {mockups.length > 0 && (

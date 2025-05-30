@@ -382,7 +382,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
         </div>
       )}
 
-      <Tabs defaultValue="generate">
+      <Tabs defaultValue="upload">
         <TabsList className="w-full mb-4"> 
           <TabsTrigger value="upload" className="flex-1">
             <Upload className="h-4 w-4 mr-2" />
