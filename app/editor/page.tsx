@@ -529,21 +529,16 @@ export default function EditorPage() {
                 </TabsList>
 
                 <TabsContent value="mockup" className="p-4 space-y-4">
-                  <Tabs defaultValue="gemini">
+                  <Tabs defaultValue="gpt">
                     <TabsList className="w-full mb-4">
-                      <TabsTrigger value="gemini" className="flex-1">
-                        <Zap className="h-4 w-4 mr-2" />
-                        Gemini
-                      </TabsTrigger>
+                      
                       <TabsTrigger value="gpt" className="flex-1">
                         <Sparkles className="h-4 w-4 mr-2" />
                         GPT Image
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="gemini">
-                      <AIImageGenerator onImageGenerated={handleImageGenerated} />
-                    </TabsContent>
+                    
 
                     <TabsContent value="gpt">
                       <GPTImageGenerator onImageGenerated={handleImageGenerated} />
