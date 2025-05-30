@@ -160,7 +160,7 @@ export default function LandingPage() {
                 <ModernCard variant="glass" className="p-8">
                   <div className="aspect-[9/16] max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
                     <img
-                      src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot_20250422_213402_Google%20Play%20Store.jpg-PYCiYQRDL5MUCFqlPz1LEMdUDlRMvJ.jpeg"
+                      src="https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/Design-an-absolutely-4f414abc.png"
                       alt="App mockup preview"
                       className="w-full h-full object-cover"
                     />
