@@ -383,132 +383,13 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       )}
 
       <Tabs defaultValue="generate">
-        <TabsList className="w-full mb-4">
-          <TabsTrigger value="generate" className="flex-1">
-            <Wand2 className="h-4 w-4 mr-2" />
-            AI Generate
-          </TabsTrigger>
+        <TabsList className="w-full mb-4"> 
           <TabsTrigger value="upload" className="flex-1">
             <Upload className="h-4 w-4 mr-2" />
             Upload Screenshot
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="generate" className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="prompt">Describe the app mockup you want</Label>
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowPromptIdeas(!showPromptIdeas)}
-                className="text-xs"
-              >
-                <Lightbulb className="h-3 w-3 mr-1 text-primary" />
-                Ideas
-              </GlassButton>
-            </div>
-            <Textarea
-              id="prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., A fitness app dashboard showing workout progress with a dark theme and lime green accents"
-              className="bg-background/30 backdrop-blur-sm border-border/40 glossy"
-              rows={3}
-              disabled={showUpgradeNeeded}
-            />
-
-            {showPromptIdeas && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mt-2 p-3 rounded-md bg-background/50 backdrop-blur-md border border-border/40 glossy"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-sm font-medium text-glow">Prompt Ideas</h4>
-                  <GlassButton variant="ghost" size="sm" onClick={() => setShowPromptIdeas(false)}>
-                    <X className="h-3 w-3" />
-                  </GlassButton>
-                </div>
-
-                {promptSuggestions.map((idea, idx) => (
-                  <div
-                    key={idx}
-                    className="text-xs p-1.5 rounded hover:bg-background/70 cursor-pointer flex items-start"
-                    onClick={() => handlePromptIdeaClick(idea)}
-                  >
-                    <Palette className="h-3 w-3 mr-1.5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>{idea}</span>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Aspect Ratio</Label>
-            <RadioGroup
-              value={aspectRatio}
-              onValueChange={(value) => setAspectRatio(value as any)}
-              className="flex flex-wrap gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1024x1024" id="ratio-square" disabled={showUpgradeNeeded} />
-                <Label htmlFor="ratio-square">Square (1024x1024)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1536x1024" id="ratio-landscape" disabled={showUpgradeNeeded} />
-                <Label htmlFor="ratio-landscape">Landscape (1536x1024)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1024x1536" id="ratio-portrait" disabled={showUpgradeNeeded} />
-                <Label htmlFor="ratio-portrait">Portrait (1024x1536)</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center">
-              <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-              <div className="flex-1">{error}</div>
-              <div className="flex gap-2">
-                {retryCount < 3 && !showUpgradeNeeded && (
-                  <GlassButton size="sm" variant="outline" onClick={handleRetry}>
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Retry
-                  </GlassButton>
-                )}
-                {retryCount >= 3 && !showUpgradeNeeded && (
-                  <GlassButton size="sm" variant="outline" onClick={useFallbackImage}>
-                    <ImageIcon className="h-3 w-3 mr-1" />
-                    Use Fallback
-                  </GlassButton>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end">
-            <GlassButton 
-              onClick={generateImage} 
-              disabled={loading || showUpgradeNeeded || !prompt.trim()} 
-              className="glossy-button"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Mockup
-                </>
-              )}
-            </GlassButton>
-          </div>
-        </TabsContent>
 
         <TabsContent value="upload" className="space-y-4">
           <div className="space-y-4">
