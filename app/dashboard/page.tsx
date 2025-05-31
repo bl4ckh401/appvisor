@@ -55,8 +55,8 @@ export default function DashboardPage() {
         try {
           const { data: mockupsData, error: mockupsError } = await supabase
             .from("mockups")
-            .select("*")
-            .in("project_id", projectIds)
+            .select("*, projects!inner(user_id)")
+            .eq("projects.user_id", user.id)
             .order("created_at", { ascending: false });
 
           if (mockupsError) {
