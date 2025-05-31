@@ -56,8 +56,8 @@ export default function DashboardPage() {
           const { data: mockupsData, error: mockupsError } = await supabase
             .from("mockups")
             .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
+            .in("project_id", projectIds)
+            .order("created_at", { ascending: false });
 
           if (mockupsError) {
             if (mockupsError.message.includes("relation") && mockupsError.message.includes("does not exist")) {
