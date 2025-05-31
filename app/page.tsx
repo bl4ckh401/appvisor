@@ -285,6 +285,200 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <div className="container px-4 md:px-6">
+    <motion.div
+      className="text-center mb-16"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+    >
+      <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary backdrop-blur-xl mb-6">
+        <Sparkles className="mr-2 h-4 w-4" />
+        Showcase Gallery
+      </div>
+      <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+        See What's Possible with{" "}
+        <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          AppVisor
+        </span>
+      </h2>
+      <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+        From fitness apps to productivity tools, our AI creates stunning mockups for every category
+      </p>
+    </motion.div>
+
+    {/* Bento Grid Gallery */}
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-16">
+      {/* Large Featured Item */}
+      <motion.div
+        className="col-span-2 md:col-span-2 lg:col-span-3 row-span-2"
+        initial={{ opacity: 0, scale: 0.9 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <ModernCard variant="glass" className="h-full overflow-hidden group cursor-pointer">
+          <div className="relative h-full">
+            <img
+              src="https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/Design-an-absolutely-4f414abc.png"
+              alt="Featured mockup"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h3 className="text-white text-xl font-bold mb-2">Fitness Tracker Pro</h3>
+                <p className="text-white/80">Health & Fitness</p>
+              </div>
+            </div>
+          </div>
+        </ModernCard>
+      </motion.div>
+
+      {/* Medium Items */}
+      <motion.div
+        className="col-span-1 md:col-span-1 lg:col-span-2"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
+        <ModernCard variant="glass" className="h-full overflow-hidden group cursor-pointer">
+          <div className="relative h-full">
+            <img
+              src="/placeholder.svg?height=400&width=300&text=Meditation"
+              alt="Meditation app mockup"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+              <span className="text-white font-medium">Mindful Moments</span>
+            </div>
+          </div>
+        </ModernCard>
+      </motion.div>
+
+      <motion.div
+        className="col-span-1 md:col-span-1 lg:col-span-1"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <ModernCard variant="glass" className="h-full overflow-hidden group cursor-pointer">
+          <div className="relative h-full">
+            <img
+              src="/placeholder.svg?height=300&width=300&text=Todo"
+              alt="Todo app mockup"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-accent/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+              <span className="text-white font-medium">TaskMaster</span>
+            </div>
+          </div>
+        </ModernCard>
+      </motion.div>
+
+      {/* Small Items Grid */}
+      {[
+        { name: "Food Delivery", color: "from-orange-500/80" },
+        { name: "Travel Planner", color: "from-blue-500/80" },
+        { name: "Finance Tracker", color: "from-green-500/80" },
+        { name: "Music Player", color: "from-purple-500/80" },
+        { name: "Weather App", color: "from-cyan-500/80" },
+        { name: "Social Network", color: "from-pink-500/80" },
+      ].map((item, index) => (
+        <motion.div
+          key={item.name}
+          className="col-span-1"
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.1 * (index + 3) }}
+        >
+          <ModernCard variant="glass" className="aspect-square overflow-hidden group cursor-pointer">
+            <div className="relative h-full">
+              <img
+                src={`/placeholder.svg?height=200&width=200&text=${item.name.split(' ')[0]}`}
+                alt={`${item.name} mockup`}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+              <div className={`absolute inset-0 bg-gradient-to-t ${item.color} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3`}>
+                <span className="text-white text-sm font-medium">{item.name}</span>
+              </div>
+            </div>
+          </ModernCard>
+        </motion.div>
+      ))}
+    </div>
+
+    {/* Infinite Scroll Carousel */}
+    <motion.div
+      className="relative mb-16"
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+    >
+      <h3 className="text-2xl font-bold text-center mb-8">Trending Designs This Week</h3>
+      <div className="relative overflow-hidden">
+        <div className="flex gap-4 animate-scroll">
+          {/* Duplicate for infinite scroll effect */}
+          {[...Array(2)].map((_, setIndex) => (
+            <div key={setIndex} className="flex gap-4">
+              {[
+                "Gaming Console", "E-Learning", "Dating App", "Crypto Wallet", 
+                "Video Editor", "News Reader", "Recipe Book", "Workout Timer"
+              ].map((name, index) => (
+                <div key={`${setIndex}-${index}`} className="flex-shrink-0 w-64">
+                  <ModernCard variant="glass" className="overflow-hidden">
+                    <img
+                      src={`/placeholder.svg?height=400&width=300&text=${name}`}
+                      alt={`${name} mockup`}
+                      className="w-full h-80 object-cover"
+                    />
+                    <div className="p-4">
+                      <h4 className="font-semibold">{name}</h4>
+                      <p className="text-sm text-muted-foreground">Premium Template</p>
+                    </div>
+                  </ModernCard>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+
+    {/* Interactive 3D Carousel */}
+    <motion.div
+      className="text-center"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+    >
+      <h3 className="text-2xl font-bold mb-8">Browse by Category</h3>
+      <div className="flex flex-wrap justify-center gap-3 mb-12">
+        {["All", "Health", "Productivity", "Social", "Entertainment", "Education", "Finance"].map((category) => (
+          <button
+            key={category}
+            className={`px-6 py-2 rounded-full transition-all duration-300 ${
+              category === "All" 
+                ? "bg-gradient-to-r from-primary to-accent text-white" 
+                : "bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10"
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      <ModernButton variant="gradient" size="lg" asChild>
+        <Link href="/templates">Explore All Templates</Link>
+      </ModernButton>
+    </motion.div>
+  </div>
+
       {/* CTA Section */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20" />

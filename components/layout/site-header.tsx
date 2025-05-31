@@ -15,22 +15,51 @@ export function SiteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [supabaseError, setSupabaseError] = useState(false)
   const pathname = usePathname()
-  const supabase = createClient()
+
+  let supabase: ReturnType<typeof createClient> | null = null
+
+  try {
+    supabase = createClient()
+  } catch (error) {
+    console.error("Failed to initialize Supabase client:", error)
+    setSupabaseError(true)
+  }
 
   useEffect(() => {
+    if (!supabase) return
+
     const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setIsLoggedIn(!!user)
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser()
+
+        if (error) {
+          console.error("Auth error:", error)
+          return
+        }
+
+        setIsLoggedIn(!!user)
+      } catch (error) {
+        console.error("Failed to check auth:", error)
+      }
     }
 
     checkAuth()
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsLoggedIn(!!session?.user)
-    })
+    let authListener: { data: { subscription: { unsubscribe: () => void } } } | null = null
+
+    try {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        setIsLoggedIn(!!session?.user)
+      })
+      authListener = { data }
+    } catch (error) {
+      console.error("Failed to set up auth listener:", error)
+    }
 
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20)
@@ -39,14 +68,20 @@ export function SiteHeader() {
     window.addEventListener("scroll", handleScroll)
 
     return () => {
-      authListener?.subscription.unsubscribe()
+      authListener?.data?.subscription?.unsubscribe?.()
       window.removeEventListener("scroll", handleScroll)
     }
   }, [supabase])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    setIsMenuOpen(false)
+    if (!supabase) return
+
+    try {
+      await supabase.auth.signOut()
+      setIsMenuOpen(false)
+    } catch (error) {
+      console.error("Failed to sign out:", error)
+    }
   }
 
   const isActive = (path: string) => {
@@ -67,14 +102,14 @@ export function SiteHeader() {
         {/* Logo */}
         <Link href="/" className="flex items-center group">
           <motion.div
-            className="mr-3 rounded-xl bg-gradient-primary p-2 shadow-glow"
+            className="mr-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 p-2 shadow-md"
             whileHover={{ scale: 1.1, rotate: 5 }}
             transition={{ duration: 0.2 }}
           >
             <Sparkles className="h-5 w-5 text-white" />
           </motion.div>
           <motion.span
-            className="text-xl font-bold gradient-text"
+            className="text-xl font-bold bg-gradient-to-r from-purple-500 to-blue-600 bg-clip-text text-transparent"
             whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.2 }}
           >
@@ -109,7 +144,7 @@ export function SiteHeader() {
               <NavLink href="/pricing" active={isActive("/pricing")} icon={<CreditCard className="h-4 w-4" />}>
                 Pricing
               </NavLink>
-              <ModernButton variant="gradient" size="sm" asChild>
+              <ModernButton asChild>
                 <Link href="/auth">
                   <LogIn className="h-4 w-4 mr-2" />
                   Sign In
@@ -150,10 +185,12 @@ export function SiteHeader() {
               >
                 <div className="flex items-center justify-between p-6 border-b border-white/10">
                   <Link href="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
-                    <div className="mr-3 rounded-xl bg-gradient-primary p-2">
+                    <div className="mr-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 p-2">
                       <Sparkles className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-xl font-bold gradient-text">AppVisor</span>
+                    <span className="text-xl font-bold bg-gradient-to-r from-purple-500 to-blue-600 bg-clip-text text-transparent">
+                      AppVisor
+                    </span>
                   </Link>
                   <ModernButton variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)}>
                     <X className="h-5 w-5" />
@@ -205,12 +242,7 @@ export function SiteHeader() {
                         Pricing
                       </MobileNavLink>
                       <div className="pt-4 mt-4 border-t border-white/10">
-                        <ModernButton
-                          variant="gradient"
-                          className="w-full justify-start"
-                          onClick={() => setIsMenuOpen(false)}
-                          asChild
-                        >
+                        <ModernButton className="w-full justify-start" onClick={() => setIsMenuOpen(false)} asChild>
                           <Link href="/auth">
                             <LogIn className="h-5 w-5 mr-3" />
                             Sign In
@@ -240,7 +272,7 @@ function NavLink({
       href={href}
       className={`flex items-center px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300 ${
         active
-          ? "bg-gradient-primary text-white shadow-glow"
+          ? "bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-md"
           : "hover:bg-white/10 text-foreground/80 hover:text-foreground"
       }`}
     >
@@ -265,7 +297,7 @@ function MobileNavLink({
       onClick={onClick}
       className={`flex items-center px-4 py-3 text-base font-medium rounded-xl transition-all duration-300 ${
         isActive
-          ? "bg-gradient-primary text-white shadow-glow"
+          ? "bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-md"
           : "hover:bg-white/10 text-foreground/80 hover:text-foreground"
       }`}
     >
