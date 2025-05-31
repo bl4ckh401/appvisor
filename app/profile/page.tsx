@@ -1,16 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { GlassButton } from "@/components/ui/glass-button"
 import { GlassCard } from "@/components/ui/glass-card"
-import { Input } from "@/components/ui/input"
+import { ModernInput } from "@/components/ui/modern-input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Settings, CreditCard, LogOut } from "lucide-react"
+import { User, Mail, Camera, Save, Loader2 } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
@@ -73,7 +72,6 @@ export default function ProfilePage() {
         updated_at: new Date().toISOString(),
       }
 
-      // If profile doesn't exist, insert it, otherwise update it
       let error
 
       if (!profile) {
@@ -87,6 +85,9 @@ export default function ProfilePage() {
       if (error) throw error
 
       setMessage({ type: "success", text: "Profile updated successfully!" })
+
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error("Error updating profile:", error)
       setMessage({ type: "error", text: "Error updating profile. Please try again." })
@@ -95,178 +96,169 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = "/"
-  }
-
   if (loading) {
     return (
-      <div className="container py-10">
-        <GlassCard className="p-8 max-w-md mx-auto text-center">
-          <p>Loading profile...</p>
-        </GlassCard>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-lg">Loading profile...</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container py-10">
-      <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-4xl mx-auto"
+        >
+          {/* Header */}
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">My Profile</h1>
+            <p className="text-lg sm:text-xl text-muted-foreground">Manage your account information and preferences</p>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <GlassCard className="p-6">
-            <div className="flex flex-col items-center">
-              <Avatar className="h-24 w-24 mb-4">
-                <AvatarImage src={avatarUrl || "/placeholder.svg?height=96&width=96"} />
-                <AvatarFallback>{fullName?.charAt(0) || user?.email?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <h2 className="text-xl font-bold">{fullName || "User"}</h2>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
-
-              <div className="w-full mt-6 space-y-2">
-                <GlassButton variant="outline" className="w-full justify-start" asChild>
-                  <a href="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </a>
-                </GlassButton>
-                <GlassButton variant="outline" className="w-full justify-start" asChild>
-                  <a href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </a>
-                </GlassButton>
-                <GlassButton variant="outline" className="w-full justify-start" asChild>
-                  <a href="/billing">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Billing
-                  </a>
-                </GlassButton>
-                <GlassButton
-                  variant="outline"
-                  className="w-full justify-start text-destructive hover:text-destructive"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </GlassButton>
-              </div>
-            </div>
-          </GlassCard>
-        </div>
-
-        <div className="md:col-span-2">
-          <Tabs defaultValue="profile">
-            <TabsList className="bg-background/40 backdrop-blur-md mb-6">
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="account">Account</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="profile">
-              <GlassCard className="p-6">
-                <form onSubmit={updateProfile} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Your full name"
-                      className="bg-background/30 backdrop-blur-sm border-border/40"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={user?.email}
-                      disabled
-                      className="bg-background/30 backdrop-blur-sm border-border/40"
-                    />
-                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="avatarUrl">Avatar URL</Label>
-                    <Input
-                      id="avatarUrl"
-                      type="text"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
-                      className="bg-background/30 backdrop-blur-sm border-border/40"
-                    />
-                  </div>
-
-                  {message && (
-                    <div
-                      className={`p-3 rounded-md ${
-                        message.type === "error"
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-green-500/10 text-green-500"
-                      }`}
-                    >
-                      {message.text}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Profile Picture Section */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="lg:col-span-1"
+            >
+              <GlassCard className="p-6 sm:p-8 text-center">
+                <div className="space-y-6">
+                  <div className="relative inline-block">
+                    <Avatar className="h-24 w-24 sm:h-32 sm:w-32 mx-auto ring-4 ring-primary/20">
+                      <AvatarImage src={avatarUrl || "/placeholder.svg?height=128&width=128"} />
+                      <AvatarFallback className="text-2xl sm:text-3xl">
+                        {fullName?.charAt(0) || user?.email?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -bottom-2 -right-2 p-2 bg-primary rounded-full shadow-lg">
+                      <Camera className="h-4 w-4 text-primary-foreground" />
                     </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <GlassButton type="submit" disabled={saving}>
-                      {saving ? "Saving..." : "Save Changes"}
-                    </GlassButton>
-                  </div>
-                </form>
-              </GlassCard>
-            </TabsContent>
-
-            <TabsContent value="account">
-              <GlassCard className="p-6">
-                <h3 className="text-lg font-medium mb-4">Account Settings</h3>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      className="bg-background/30 backdrop-blur-sm border-border/40"
-                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      className="bg-background/30 backdrop-blur-sm border-border/40"
-                    />
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">{fullName || "User"}</h2>
+                    <p className="text-sm sm:text-base text-muted-foreground flex items-center justify-center">
+                      <Mail className="h-4 w-4 mr-2" />
+                      {user?.email}
+                    </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      className="bg-background/30 backdrop-blur-sm border-border/40"
-                    />
-                  </div>
-
-                  <div className="flex justify-end">
-                    <GlassButton>Update Password</GlassButton>
+                  <div className="pt-4 border-t border-border/40">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Member since {new Date(user?.created_at || Date.now()).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               </GlassCard>
-            </TabsContent>
-          </Tabs>
-        </div>
+            </motion.div>
+
+            {/* Profile Form Section */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="lg:col-span-2"
+            >
+              <GlassCard className="p-6 sm:p-8">
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <User className="h-6 w-6 text-primary" />
+                    <h3 className="text-xl sm:text-2xl font-semibold text-foreground">Profile Information</h3>
+                  </div>
+
+                  <form onSubmit={updateProfile} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName" className="text-sm font-medium text-foreground">
+                          Full Name
+                        </Label>
+                        <ModernInput
+                          id="fullName"
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Enter your full name"
+                          icon={<User className="h-4 w-4" />}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                          Email Address
+                        </Label>
+                        <ModernInput
+                          id="email"
+                          type="email"
+                          value={user?.email || ""}
+                          disabled
+                          icon={<Mail className="h-4 w-4" />}
+                        />
+                        <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="avatarUrl" className="text-sm font-medium text-foreground">
+                        Avatar URL
+                      </Label>
+                      <ModernInput
+                        id="avatarUrl"
+                        type="url"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        placeholder="https://example.com/avatar.jpg"
+                        icon={<Camera className="h-4 w-4" />}
+                      />
+                      <p className="text-xs text-muted-foreground">Provide a URL to your profile picture</p>
+                    </div>
+
+                    {/* Message Display */}
+                    {message && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className={`p-4 rounded-xl border ${
+                          message.type === "error"
+                            ? "bg-destructive/10 border-destructive/20 text-destructive"
+                            : "bg-green-500/10 border-green-500/20 text-green-600"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">{message.text}</p>
+                      </motion.div>
+                    )}
+
+                    {/* Submit Button */}
+                    <div className="flex justify-end pt-4">
+                      <GlassButton type="submit" disabled={saving} className="min-w-[140px]">
+                        {saving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </GlassButton>
+                    </div>
+                  </form>
+                </div>
+              </GlassCard>
+            </motion.div>
+          </div>
+        </motion.div>
       </div>
     </div>
   )
