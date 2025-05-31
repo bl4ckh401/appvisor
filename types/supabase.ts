@@ -34,6 +34,11 @@ export interface Database {
           id: string
           name: string
           description: string | null
+          category: string
+          platform: string
+          target_audience: string | null
+          app_type: string | null
+          color_scheme: string | null
           user_id: string
           created_at: string
           updated_at: string
@@ -42,6 +47,11 @@ export interface Database {
           id?: string
           name: string
           description?: string | null
+          category: string
+          platform: string
+          target_audience?: string | null
+          app_type?: string | null
+          color_scheme?: string | null
           user_id: string
           created_at?: string
           updated_at?: string
@@ -50,6 +60,11 @@ export interface Database {
           id?: string
           name?: string
           description?: string | null
+          category?: string
+          platform?: string
+          target_audience?: string | null
+          app_type?: string | null
+          color_scheme?: string | null
           user_id?: string
           created_at?: string
           updated_at?: string
@@ -95,6 +110,7 @@ export interface Database {
           id: string
           name: string
           project_id: string
+          user_id: string
           template_id: string | null
           device_type: string
           background_color: string | null
@@ -107,6 +123,7 @@ export interface Database {
           id?: string
           name: string
           project_id: string
+          user_id: string
           template_id?: string | null
           device_type: string
           background_color?: string | null
@@ -119,6 +136,7 @@ export interface Database {
           id?: string
           name?: string
           project_id?: string
+          user_id?: string
           template_id?: string | null
           device_type?: string
           background_color?: string | null

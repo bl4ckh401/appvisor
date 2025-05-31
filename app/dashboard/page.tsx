@@ -37,25 +37,41 @@ export default function DashboardPage() {
           return
         }
 
-        // Load projects and mockups with error handling
-        const [projectsResult, mockupsResult] = await Promise.allSettled([
-          supabase.from("projects").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-          supabase.from("mockups").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-        ])
+        // Load projects
+        const { data: projectsData, error: projectsError } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
 
-        // Handle projects result
-        if (projectsResult.status === "fulfilled" && projectsResult.value.data) {
-          setProjects(projectsResult.value.data)
-        } else {
-          console.warn("Failed to load projects")
+        if (projectsError) {
+          console.error("Projects error:", projectsError)
           setProjects([])
+        } else {
+          setProjects(projectsData || [])
         }
 
-        // Handle mockups result
-        if (mockupsResult.status === "fulfilled" && mockupsResult.value.data) {
-          setMockups(mockupsResult.value.data)
-        } else {
-          console.warn("Failed to load mockups")
+        // Load mockups - try to fetch, but handle gracefully if table doesn't exist
+        try {
+          const { data: mockupsData, error: mockupsError } = await supabase
+            .from("mockups")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+
+          if (mockupsError) {
+            if (mockupsError.message.includes("relation") && mockupsError.message.includes("does not exist")) {
+              console.log("Mockups table doesn't exist yet, using empty array")
+              setMockups([])
+            } else {
+              console.error("Mockups error:", mockupsError)
+              setMockups([])
+            }
+          } else {
+            setMockups(mockupsData || [])
+          }
+        } catch (mockupsErr) {
+          console.error("Error fetching mockups:", mockupsErr)
           setMockups([])
         }
       } catch (err) {
@@ -117,7 +133,7 @@ export default function DashboardPage() {
           <QuickActions />
 
           {/* Recent Activity */}
-          <RecentActivity mockups={mockups} />
+          <RecentActivity projects={projects} mockups={mockups} />
         </div>
       </div>
     </div>
