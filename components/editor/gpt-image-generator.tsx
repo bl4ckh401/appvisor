@@ -114,32 +114,40 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     // Build a comprehensive prompt from all settings
     let fullPrompt = "";
 
+    // CRITICAL: First instruction about using the uploaded image
+    fullPrompt += `IMPORTANT: Use the uploaded image as the ACTUAL SCREEN CONTENT displayed on the device. The uploaded screenshot must be what's shown on the device's screen - do not replace it with text or other content.\n\n`;
+
     // Start with custom prompt if provided
     if (customPrompt.trim()) {
-      fullPrompt = customPrompt + "\n\n";
+      fullPrompt += customPrompt + "\n\n";
     }
 
     // Add base instruction
     fullPrompt += `Create an absolutely stunning ${artStyle} app store mockup that makes people stop scrolling.\n\n`;
 
-    // Caption and text
+    // Caption and text - these are OUTSIDE the device, not on the screen
     if (caption) {
-      fullPrompt += `"${caption}" - Make this headline ${textSize.toUpperCase()} and BOLD. `;
+      fullPrompt += `Text overlay (NOT on the device screen): "${caption}" - Make this headline ${textSize.toUpperCase()} and BOLD. `;
+      fullPrompt += `Place this text OUTSIDE the device as a marketing headline. `;
       fullPrompt += `Use ${fontStyle} typography, ${textAlignment} aligned, in ${textColor} color. `;
       fullPrompt += `Think Apple Keynote style with incredible presence and weight.\n`;
     }
     
     if (subCaption) {
-      fullPrompt += `Include subtitle: "${subCaption}" in a complementary smaller size.\n`;
+      fullPrompt += `Include subtitle (also OUTSIDE the device): "${subCaption}" in a complementary smaller size below the main headline.\n`;
     }
 
     // Device specifications
+    fullPrompt += `\nDevice and Screen Content:\n`;
     if (showDeviceFrame) {
-      fullPrompt += `\nDevice: Show a ${deviceColor} ${deviceBrand} ${deviceType} in ${deviceOrientation} orientation. `;
-      fullPrompt += `Make it look premium and expensive - like it's worth $1000+. `;
-      fullPrompt += `Position: ${screenPosition} of the composition.\n`;
+      fullPrompt += `- Show a ${deviceColor} ${deviceBrand} ${deviceType} in ${deviceOrientation} orientation\n`;
+      fullPrompt += `- The uploaded screenshot must be displayed ON THE DEVICE SCREEN\n`;
+      fullPrompt += `- Make the device look premium and expensive - like it's worth $1000+\n`;
+      fullPrompt += `- Position the device ${screenPosition} of the composition\n`;
+      fullPrompt += `- The screen should show the EXACT uploaded image, not any other content\n`;
     } else {
-      fullPrompt += `\nShow the screenshot without device frame, floating in space.\n`;
+      fullPrompt += `- Show the uploaded screenshot without device frame, floating in space\n`;
+      fullPrompt += `- The uploaded image is the main focus - display it exactly as provided\n`;
     }
 
     // Background details
@@ -147,6 +155,8 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     if (backgroundStyle === "gradient") {
       fullPrompt += `flowing ${gradientDirection}ly from ${backgroundColor} to ${backgroundColorEnd}. `;
       fullPrompt += `Make it flow like silk with smooth transitions. `;
+    } else if (backgroundStyle === "mesh") {
+      fullPrompt += `with mesh gradient using ${backgroundColor} as primary and ${backgroundColorEnd} as secondary colors. `;
     } else {
       fullPrompt += `using ${backgroundColor} color. `;
     }
@@ -175,7 +185,7 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     // Lighting
     fullPrompt += `\nLighting: ${lightingStyle} lighting setup`;
     if (environmentReflections) {
-      fullPrompt += ` with environmental reflections on the screen`;
+      fullPrompt += ` with environmental reflections on the screen glass (but keep the uploaded content visible)`;
     }
     fullPrompt += `.\n`;
 
@@ -183,18 +193,20 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     if (layoutStyle === "hero") {
       fullPrompt += `\nLayout: Hero composition with device as the main focus.\n`;
     } else if (layoutStyle === "multi") {
-      fullPrompt += `\nLayout: Show multiple angles or screens of the app.\n`;
+      fullPrompt += `\nLayout: Show multiple angles or screens of the app, all displaying the uploaded screenshot.\n`;
     } else if (layoutStyle === "context") {
       fullPrompt += `\nLayout: Show app in real-world context/environment.\n`;
+    } else if (layoutStyle === "showcase") {
+      fullPrompt += `\nLayout: Feature showcase composition highlighting the uploaded app screenshot.\n`;
     }
 
     // Additional elements
     if (showBadges && badgeText) {
-      fullPrompt += `Include badge/label: "${badgeText}".\n`;
+      fullPrompt += `Include badge/label: "${badgeText}" as an overlay element (not on the device screen).\n`;
     }
     
     if (showAppIcon) {
-      fullPrompt += `Show app icon in the composition.\n`;
+      fullPrompt += `Show app icon in the composition (separate from the device screen).\n`;
     }
 
     // Perspective
@@ -217,9 +229,16 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       case "bold":
         fullPrompt += `Nike's bold campaigns, gaming industry marketing, high-impact visuals`;
         break;
+      case "futuristic":
+        fullPrompt += `Cyberpunk aesthetics, holographic effects, sci-fi interfaces`;
+        break;
+      case "vintage":
+        fullPrompt += `Retro computing aesthetics, nostalgic design, classic advertising`;
+        break;
     }
 
-    fullPrompt += `.\n\nMake it photorealistic and highly detailed. Every pixel should be intentional. The kind of image that makes other designers jealous.`;
+    fullPrompt += `.\n\nREMINDER: The uploaded image must be used as the screen content. Do not generate different screen content.\n`;
+    fullPrompt += `Make it photorealistic and highly detailed. Every pixel should be intentional. The kind of image that makes other designers jealous.`;
 
     return fullPrompt;
   };
