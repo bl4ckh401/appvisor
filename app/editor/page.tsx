@@ -49,13 +49,14 @@ export default function EditorPage() {
   const [backgroundColor, setBackgroundColor] = useState("#1a1a1a")
   const [use3D, setUse3D] = useState(false)
   const [generatingMockup, setGeneratingMockup] = useState(false)
-  const [mockupImage, setMockupImage] = useState<string | null>(null)
+  const [mockupImage, setMockupImage] = useState("/placeholder.svg?height=300&width=200")
   const [error, setError] = useState<string | null>(null)
   const [mockups, setMockups] = useState<string[]>([])
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile)
   const [activeTab, setActiveTab] = useState("mockup")
   const mockupRef = useRef(null)
+  const supabase = createClient()
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
 
   // Add this function to handle image load
@@ -71,128 +72,74 @@ export default function EditorPage() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
-      setError(null)
 
       try {
-        // Initialize Supabase client with error handling
-        let supabase
-        try {
-          supabase = createClient()
-        } catch (supabaseError) {
-          console.error("Error initializing Supabase client:", supabaseError)
-          setError("Database connection failed. Please check your configuration.")
-          setLoading(false)
-          return
-        }
-
-        // Load template data if templateId is provided
         if (templateId) {
           try {
-            console.log("Loading template:", templateId)
+            // Load template data from the database
+            const { data: template, error } = await supabase.from("templates").select("*").eq("id", templateId).single()
 
-            // Check if we can connect to Supabase first
-            const { data: healthCheck, error: healthError } = await supabase
-              .from("templates")
-              .select("count")
-              .limit(1)
-              .maybeSingle()
+            if (error) {
+              throw error
+            }
 
-            if (healthError) {
-              console.log("Templates table not accessible:", healthError.message)
-              // Continue without template data
-            } else {
-              // Load template data from the database
-              const { data: template, error } = await supabase
-                .from("templates")
-                .select("*")
-                .eq("id", templateId)
-                .maybeSingle()
-
-              if (error) {
-                console.error("Error loading template:", error)
-                // Don't throw, just log and continue
-              } else if (template) {
-                setMockupName(`${template.name} Mockup`)
-                // Set device type based on platform if available
-                if (template.platform === "ios") {
-                  setDeviceType("iphone")
-                } else if (template.platform === "android") {
-                  setDeviceType("android")
-                }
+            if (template) {
+              setMockupName(`${template.name} Mockup`)
+              // Set device type based on platform if available
+              if (template.platform === "ios") {
+                setDeviceType("iphone")
+              } else if (template.platform === "android") {
+                setDeviceType("android")
               }
             }
           } catch (templateError) {
             console.error("Error loading template:", templateError)
-            // Continue without template data
           }
         }
 
-        // Load project/mockup data if projectId is provided
         if (projectId) {
+          // Check if this is an existing mockup being edited
           const mockupId = searchParams.get("mockup")
 
           if (mockupId) {
             try {
-              console.log("Loading mockup:", mockupId)
+              const { data: mockup, error } = await supabase.from("mockups").select("*").eq("id", mockupId).single()
 
-              // Check if mockups table exists
-              const { data: mockupHealthCheck, error: mockupHealthError } = await supabase
-                .from("mockups")
-                .select("count")
-                .limit(1)
-                .maybeSingle()
-
-              if (mockupHealthError) {
-                console.log("Mockups table not accessible:", mockupHealthError.message)
-                // Continue with default values
-              } else {
-                const { data: mockup, error } = await supabase
-                  .from("mockups")
-                  .select("*")
-                  .eq("id", mockupId)
-                  .maybeSingle()
-
-                if (error) {
-                  console.error("Error loading mockup:", error)
-                  // Continue with default values
-                } else if (mockup) {
-                  setMockupName(mockup.name || "Untitled Mockup")
-                  setDeviceType(mockup.device_type || "iphone")
-                  setBackgroundColor(mockup.background_color || "#1a1a1a")
-                  setUse3D(mockup.settings?.use3D || false)
-
-                  // Load mockup image if available
-                  if (mockup.background_image_url) {
-                    setMockupImage(mockup.background_image_url)
-                  }
-
-                  // Load mockups array if available
-                  if (mockup.settings?.mockups && Array.isArray(mockup.settings.mockups)) {
-                    setMockups(mockup.settings.mockups)
-                  }
+              if (error) {
+                if (error.message.includes("relation") && error.message.includes("does not exist")) {
+                  console.log("Mockups table doesn't exist yet, using default values")
+                } else {
+                  throw error
+                }
+              } else if (mockup) {
+                setMockupName(mockup.name)
+                setDeviceType(mockup.device_type)
+                setBackgroundColor(mockup.background_color || "#1a1a1a")
+                setUse3D(mockup.settings?.use3D || false)
+                // Load mockup image if available
+                if (mockup.background_image_url) {
+                  setMockupImage(mockup.background_image_url)
+                }
+                // Load mockups array if available
+                if (mockup.settings?.mockups) {
+                  setMockups(mockup.settings.mockups)
                 }
               }
             } catch (mockupError) {
               console.error("Error loading mockup:", mockupError)
-              // Continue with default values
             }
           }
         }
-
-        // Set default project name if we have a projectId but no specific mockup name
-        if (projectId && mockupName === "Untitled Mockup") {
-          setMockupName(`Project ${projectId} Mockup`)
-        }
       } catch (err) {
-        console.error("Error in loadData:", err)
-        setError("Failed to load editor data. You can still use the editor with default settings.")
+        console.error("Error loading data:", err)
+        setError("Failed to load template or project data")
       } finally {
         setLoading(false)
       }
     }
 
     loadData()
-  }, [templateId, projectId, searchParams])
+  }, [templateId, projectId, searchParams, supabase])
 
   // Handle mobile sidebar state
   useEffect(() => {
@@ -224,8 +171,6 @@ export default function EditorPage() {
 
   const saveMockup = async (imageUrl = mockupImage) => {
     try {
-      const supabase = createClient()
-
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -309,7 +254,7 @@ export default function EditorPage() {
       console.error("Error saving mockup:", error)
       toast({
         title: "Error",
-        description: "Failed to save mockup. Please try again.",
+        description: "Failed to save mockup: " + error.message,
         variant: "destructive",
       })
     }
@@ -343,21 +288,6 @@ export default function EditorPage() {
         <Card3D className="p-8 text-center glossy-card" intensity="medium">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
           <p>Loading editor...</p>
-        </Card3D>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card3D className="p-8 text-center glossy-card max-w-md" intensity="medium">
-          <div className="text-destructive mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold mb-2">Loading Error</h3>
-          <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <GlassButton onClick={() => window.location.reload()} className="glossy-button">
-            Retry
-          </GlassButton>
         </Card3D>
       </div>
     )
@@ -546,23 +476,7 @@ export default function EditorPage() {
                   }}
                 />
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🎨</div>
-                <h3 className="text-lg font-medium mb-2">No mockup yet</h3>
-                <p className="text-muted-foreground mb-4">Generate your first AI mockup to get started</p>
-                <GlassButton
-                  onClick={() => {
-                    setRightSidebarOpen(true)
-                    setActiveTab("mockup")
-                  }}
-                  className="glossy-button"
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Mockup
-                </GlassButton>
-              </div>
-            )}
+            ) : null}
 
             {/* Generated Mockups Gallery */}
             {mockups.length > 0 && (
