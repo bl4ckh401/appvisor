@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { Plus, Upload, Palette, Download, Settings, Zap } from "lucide-react"
 import Link from "next/link"
 import { ModernCard } from "@/components/ui/modern-card"
@@ -57,12 +56,7 @@ export function QuickActions() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {actions.map((action, index) => (
-          <motion.div
-            key={action.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: index * 0.1 }}
-          >
+          <div key={action.title}>
             <Link href={action.href}>
               <ModernCard variant="glass" interactive className="p-6 h-full group">
                 <div className="flex items-start space-x-4">
@@ -80,7 +74,7 @@ export function QuickActions() {
                 </div>
               </ModernCard>
             </Link>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

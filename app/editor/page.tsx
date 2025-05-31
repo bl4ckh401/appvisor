@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -11,7 +13,6 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { motion } from "framer-motion"
-import { AIImageGenerator } from "@/components/editor/ai-image-generator"
 import { ExportMockup } from "@/components/editor/export-mockup"
 import { GPTImageGenerator } from "@/components/editor/gpt-image-generator"
 import {
@@ -30,7 +31,6 @@ import {
   ChevronLeft,
   Layers,
   Clock,
-  Zap,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -59,14 +59,14 @@ export default function EditorPage() {
   const supabase = createClient()
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
 
-// Add this function to handle image load
-const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
-  const img = event.currentTarget
-  setImageDimensions({
-    width: img.naturalWidth,
-    height: img.naturalHeight
-  })
-}
+  // Add this function to handle image load
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget
+    setImageDimensions({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    })
+  }
 
   // Load template or project data
   useEffect(() => {
@@ -453,30 +453,30 @@ const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
         >
           <div className="flex flex-col items-center">
             {mockupImage && mockupImage !== "/placeholder.svg" ? (
-            <div
-              ref={mockupRef}
-              className="rounded-lg shadow-lg relative neon-border image-pop"
-              style={{
-                width: imageDimensions?.width || 'auto',
-                height: imageDimensions?.height || 'auto',
-                backgroundColor: backgroundColor,
-                overflow: "hidden",
-                display: imageDimensions ? 'block' : 'inline-block', // inline-block while loading to fit content
-              }}
-            >
-              <img
-                src={mockupImage}
-                alt="App Screenshot"
-                className="w-full h-full object-cover"
-                onLoad={handleImageLoad}
-                onError={(e) => {
-                  // Just hide the image if it errors, no placeholder
-                  setMockupImage(null)
-                  setImageDimensions(null)
+              <div
+                ref={mockupRef}
+                className="rounded-lg shadow-lg relative neon-border image-pop"
+                style={{
+                  width: imageDimensions?.width || "auto",
+                  height: imageDimensions?.height || "auto",
+                  backgroundColor: backgroundColor,
+                  overflow: "hidden",
+                  display: imageDimensions ? "block" : "inline-block", // inline-block while loading to fit content
                 }}
-              />
-            </div>
-          ) : null}
+              >
+                <img
+                  src={mockupImage || "/placeholder.svg"}
+                  alt="App Screenshot"
+                  className="w-full h-full object-cover"
+                  onLoad={handleImageLoad}
+                  onError={(e) => {
+                    // Just hide the image if it errors, no placeholder
+                    setMockupImage(null)
+                    setImageDimensions(null)
+                  }}
+                />
+              </div>
+            ) : null}
 
             {/* Generated Mockups Gallery */}
             {mockups.length > 0 && (
@@ -547,14 +547,11 @@ const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
                 <TabsContent value="mockup" className="p-4 space-y-4">
                   <Tabs defaultValue="gpt">
                     <TabsList className="w-full mb-4">
-                      
                       <TabsTrigger value="gpt" className="flex-1">
                         <Sparkles className="h-4 w-4 mr-2" />
                         GPT Image
                       </TabsTrigger>
                     </TabsList>
-
-                    
 
                     <TabsContent value="gpt">
                       <GPTImageGenerator onImageGenerated={handleImageGenerated} />

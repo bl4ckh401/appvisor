@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
 import { QuickActions } from "@/components/dashboard/quick-actions"
@@ -48,10 +47,7 @@ export default function DashboardPage() {
         if (projectsResult.status === "fulfilled" && projectsResult.value.data) {
           setProjects(projectsResult.value.data)
         } else {
-          console.warn(
-            "Failed to load projects:",
-            projectsResult.status === "rejected" ? projectsResult.reason : "No data",
-          )
+          console.warn("Failed to load projects")
           setProjects([])
         }
 
@@ -59,16 +55,12 @@ export default function DashboardPage() {
         if (mockupsResult.status === "fulfilled" && mockupsResult.value.data) {
           setMockups(mockupsResult.value.data)
         } else {
-          console.warn(
-            "Failed to load mockups:",
-            mockupsResult.status === "rejected" ? mockupsResult.reason : "No data",
-          )
+          console.warn("Failed to load mockups")
           setMockups([])
         }
       } catch (err) {
         console.error("Dashboard error:", err)
         setError(err instanceof Error ? err.message : "Failed to load dashboard data")
-        // Set empty arrays as fallbacks
         setProjects([])
         setMockups([])
       } finally {
@@ -104,55 +96,28 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="space-y-2"
-        >
+        <div className="space-y-2">
           <h1 className="text-4xl font-bold text-foreground">Welcome back! 👋</h1>
           <p className="text-xl text-muted-foreground">Here's what's happening with your projects today.</p>
-        </motion.div>
+        </div>
 
         {/* Error Message */}
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-destructive/10 border border-destructive/20 rounded-lg p-4"
-          >
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
             <p className="text-destructive">{error}</p>
-          </motion.div>
+          </div>
         )}
 
         {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-        >
-          <DashboardStats projects={projects} mockups={mockups} />
-        </motion.div>
+        <DashboardStats projects={projects} mockups={mockups} />
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <QuickActions />
-          </motion.div>
+          <QuickActions />
 
           {/* Recent Activity */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
-            <RecentActivity mockups={mockups} />
-          </motion.div>
+          <RecentActivity mockups={mockups} />
         </div>
       </div>
     </div>

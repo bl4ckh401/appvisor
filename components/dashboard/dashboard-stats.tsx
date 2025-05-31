@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { TrendingUp, TrendingDown, Users, ImageIcon, Zap, Target } from "lucide-react"
 import { ModernCard } from "@/components/ui/modern-card"
 
@@ -66,12 +65,7 @@ export function DashboardStats({ projects = [], mockups = [] }: DashboardStatsPr
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, index) => (
-        <motion.div
-          key={stat.title}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: index * 0.1 }}
-        >
+        <div key={stat.title}>
           <ModernCard variant="glass" className="p-6 relative overflow-hidden">
             {/* Background gradient overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-10`} />
@@ -94,19 +88,14 @@ export function DashboardStats({ projects = [], mockups = [] }: DashboardStatsPr
               </div>
 
               <div>
-                <motion.div
-                  className="text-3xl font-bold text-foreground mb-1"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
-                >
+                <div className="text-3xl font-bold text-foreground mb-1">
                   {typeof stat.value === "number" ? stat.value.toLocaleString() : stat.value}
-                </motion.div>
+                </div>
                 <p className="text-sm text-muted-foreground">{stat.title}</p>
               </div>
             </div>
           </ModernCard>
-        </motion.div>
+        </div>
       ))}
     </div>
   )
