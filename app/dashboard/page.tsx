@@ -37,41 +37,25 @@ export default function DashboardPage() {
           return
         }
 
-        // Load projects
-        const { data: projectsData, error: projectsError } = await supabase
-          .from("projects")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
+        // Load projects and mockups with error handling
+        const [projectsResult, mockupsResult] = await Promise.allSettled([
+          supabase.from("projects").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+          supabase.from("mockups").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        ])
 
-        if (projectsError) {
-          console.error("Projects error:", projectsError)
-          setProjects([])
+        // Handle projects result
+        if (projectsResult.status === "fulfilled" && projectsResult.value.data) {
+          setProjects(projectsResult.value.data)
         } else {
-          setProjects(projectsData || [])
+          console.warn("Failed to load projects")
+          setProjects([])
         }
 
-        // Load mockups
-        try {
-          const { data: mockupsData, error: mockupsError } = await supabase
-            .from("mockups")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-
-          if (mockupsError) {
-            if (mockupsError.message.includes("relation") && mockupsError.message.includes("does not exist")) {
-              console.log("Mockups table doesn't exist yet, using empty array")
-              setMockups([])
-            } else {
-              console.error("Mockups error:", mockupsError)
-              setMockups([])
-            }
-          } else {
-            setMockups(mockupsData || [])
-          }
-        } catch (mockupsErr) {
-          console.error("Error fetching mockups:", mockupsErr)
+        // Handle mockups result
+        if (mockupsResult.status === "fulfilled" && mockupsResult.value.data) {
+          setMockups(mockupsResult.value.data)
+        } else {
+          console.warn("Failed to load mockups")
           setMockups([])
         }
       } catch (err) {
@@ -89,26 +73,18 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-          <div className="animate-pulse space-y-6 sm:space-y-8">
-            {/* Header skeleton */}
-            <div className="space-y-3">
-              <div className="h-8 sm:h-10 lg:h-12 bg-white/10 rounded-lg w-full max-w-md"></div>
-              <div className="h-4 sm:h-5 lg:h-6 bg-white/10 rounded-lg w-full max-w-lg"></div>
-            </div>
-
-            {/* Stats skeleton */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-white/10 rounded-lg w-64"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 sm:h-36 lg:h-40 bg-white/10 rounded-2xl"></div>
+                <div key={i} className="h-32 bg-white/10 rounded-2xl"></div>
               ))}
             </div>
-
-            {/* Content skeleton */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8">
-              <div className="h-80 sm:h-96 bg-white/10 rounded-2xl"></div>
-              <div className="h-80 sm:h-96 bg-white/10 rounded-2xl"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="h-96 bg-white/10 rounded-2xl"></div>
+              <div className="h-96 bg-white/10 rounded-2xl"></div>
             </div>
           </div>
         </div>
@@ -118,38 +94,30 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-        <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-          {/* Header */}
-          <div className="space-y-2 sm:space-y-3">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground">Welcome back! 👋</h1>
-            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl">
-              Here's what's happening with your projects today.
-            </p>
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold text-foreground">Welcome back! 👋</h1>
+          <p className="text-xl text-muted-foreground">Here's what's happening with your projects today.</p>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <p className="text-destructive">{error}</p>
           </div>
+        )}
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 sm:p-6">
-              <p className="text-destructive text-sm sm:text-base">{error}</p>
-            </div>
-          )}
+        {/* Stats */}
+        <DashboardStats projects={projects} mockups={mockups} />
 
-          {/* Stats */}
-          <DashboardStats projects={projects} mockups={mockups} />
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Quick Actions */}
+          <QuickActions />
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8">
-            {/* Quick Actions */}
-            <div className="order-2 xl:order-1">
-              <QuickActions />
-            </div>
-
-            {/* Recent Activity */}
-            <div className="order-1 xl:order-2">
-              <RecentActivity projects={projects} mockups={mockups} />
-            </div>
-          </div>
+          {/* Recent Activity */}
+          <RecentActivity mockups={mockups} />
         </div>
       </div>
     </div>

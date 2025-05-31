@@ -1,27 +1,82 @@
-import { Plus } from "lucide-react"
-import Link from "next/link"
+"use client"
 
-import { GlassButton } from "@/components/ui/glass-button"
+import { Plus, Upload, Palette, Download, Settings, Zap } from "lucide-react"
+import Link from "next/link"
 import { ModernCard } from "@/components/ui/modern-card"
 
 export function QuickActions() {
+  const actions = [
+    {
+      title: "New Project",
+      description: "Start a new mockup project",
+      icon: <Plus className="h-6 w-6" />,
+      href: "/projects/new",
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      title: "Upload Images",
+      description: "Upload screenshots to transform",
+      icon: <Upload className="h-6 w-6" />,
+      href: "/editor",
+      color: "from-purple-500 to-pink-500",
+    },
+    {
+      title: "AI Generator",
+      description: "Generate images with AI",
+      icon: <Zap className="h-6 w-6" />,
+      href: "/editor?tab=ai",
+      color: "from-green-500 to-emerald-500",
+    },
+    {
+      title: "Templates",
+      description: "Browse mockup templates",
+      icon: <Palette className="h-6 w-6" />,
+      href: "/templates",
+      color: "from-orange-500 to-red-500",
+    },
+    {
+      title: "Export",
+      description: "Download your mockups",
+      icon: <Download className="h-6 w-6" />,
+      href: "/mockups",
+      color: "from-indigo-500 to-purple-500",
+    },
+    {
+      title: "Settings",
+      description: "Manage your account",
+      icon: <Settings className="h-6 w-6" />,
+      href: "/profile",
+      color: "from-gray-500 to-slate-500",
+    },
+  ]
+
   return (
-    <ModernCard variant="glass" className="p-4 sm:p-6">
-      <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">Quick Actions</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <GlassButton className="h-auto p-4 sm:p-6 flex flex-col items-center space-y-2 sm:space-y-3" asChild>
-          <Link href="/projects/new">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-2">
-              <Plus className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-sm sm:text-base">New Project</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Start creating</p>
-            </div>
-          </Link>
-        </GlassButton>
-        {/* Add more quick actions here */}
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-foreground">Quick Actions</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {actions.map((action, index) => (
+          <div key={action.title}>
+            <Link href={action.href}>
+              <ModernCard variant="glass" interactive className="p-6 h-full group">
+                <div className="flex items-start space-x-4">
+                  <div
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}
+                  >
+                    {action.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
+                      {action.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{action.description}</p>
+                  </div>
+                </div>
+              </ModernCard>
+            </Link>
+          </div>
+        ))}
       </div>
-    </ModernCard>
+    </div>
   )
 }

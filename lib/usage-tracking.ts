@@ -28,20 +28,20 @@ export async function trackFeatureUsage(
   try {
     // Always log to localStorage first as a backup
     const supabase = createClient()
-    
+
     // Get the current user
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    
+
     if (!user) {
       console.error("Cannot track usage: No authenticated user")
       return false
     }
-    
+
     // Log to localStorage as a reliable backup
     logUsageToLocalStorage(user.id, feature, metadata)
-    
+
     // Now try to log to the database, but don't fail if it doesn't work
     try {
       // Use a server-side API endpoint instead of direct database access
@@ -56,13 +56,13 @@ export async function trackFeatureUsage(
           metadata,
         }),
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         console.error("Error tracking feature usage via API:", errorData)
         return false
       }
-      
+
       return true
     } catch (apiError) {
       console.error("Error calling feature usage API:", apiError)
@@ -145,13 +145,15 @@ export async function hasReachedFeatureLimit(feature: TrackableFeature): Promise
 
       // Try to get usage count via API
       try {
-        const response = await fetch(`/api/feature-usage/count?feature=${feature}&since=${firstDayOfMonth.toISOString()}`)
-        
+        const response = await fetch(
+          `/api/feature-usage/count?feature=${feature}&since=${firstDayOfMonth.toISOString()}`,
+        )
+
         if (!response.ok) {
           console.error("Error fetching usage count:", await response.text())
           return false // Fail open to avoid blocking users
         }
-        
+
         const data = await response.json()
         return data.count >= limit
       } catch (error) {
@@ -173,7 +175,7 @@ export async function getUserUsageStats(): Promise<Record<string, number>> {
   try {
     // Try to get usage stats via API
     const response = await fetch("/api/feature-usage/stats")
-    
+
     if (!response.ok) {
       console.error("Error fetching usage stats:", await response.text())
       return {
@@ -182,7 +184,7 @@ export async function getUserUsageStats(): Promise<Record<string, number>> {
         export: 0,
       }
     }
-    
+
     const data = await response.json()
     return data.stats
   } catch (error) {
@@ -194,3 +196,5 @@ export async function getUserUsageStats(): Promise<Record<string, number>> {
     }
   }
 }
+
+// Export all functions for easy importing
