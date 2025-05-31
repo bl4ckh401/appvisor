@@ -91,9 +91,9 @@ export function RecentActivity({ projects = [], mockups = [] }: RecentActivityPr
 
   if (recentItems.length === 0) {
     return (
-      <ModernCard variant="glass" className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold">Recent Activity</h3>
+      <ModernCard variant="glass" className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold">Recent Activity</h3>
           <Clock className="h-5 w-5 text-muted-foreground" />
         </div>
 
@@ -109,9 +109,9 @@ export function RecentActivity({ projects = [], mockups = [] }: RecentActivityPr
   }
 
   return (
-    <ModernCard variant="glass" className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold">Recent Activity</h3>
+    <ModernCard variant="glass" className="p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h3 className="text-lg sm:text-xl font-bold">Recent Activity</h3>
         <Clock className="h-5 w-5 text-muted-foreground" />
       </div>
 
@@ -119,14 +119,14 @@ export function RecentActivity({ projects = [], mockups = [] }: RecentActivityPr
         {recentItems.map((item) => (
           <div
             key={`${item.type}-${item.id}`}
-            className="flex items-center justify-between p-4 rounded-lg bg-background/30 backdrop-blur-sm border border-border/40 hover:bg-background/50 transition-colors"
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-lg bg-background/30 backdrop-blur-sm border border-border/40 hover:bg-background/50 transition-colors space-y-3 sm:space-y-0"
           >
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 {item.type === "project" ? (
-                  <Folder className="h-5 w-5 text-primary" />
+                  <Folder className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 ) : (
-                  <ImageIcon className="h-5 w-5 text-primary" />
+                  <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 )}
               </div>
 
@@ -162,11 +162,11 @@ export function RecentActivity({ projects = [], mockups = [] }: RecentActivityPr
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-muted-foreground">{formatTimeAgo(item.created_at)}</span>
+            <div className="flex items-center justify-between sm:justify-end space-x-3 sm:space-x-3">
+              <span className="text-xs sm:text-sm text-muted-foreground">{formatTimeAgo(item.created_at)}</span>
               <GlassButton size="sm" variant="ghost" asChild>
                 <Link href={item.href}>
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Link>
               </GlassButton>
             </div>
