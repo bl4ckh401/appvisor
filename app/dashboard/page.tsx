@@ -28,7 +28,9 @@ export default function DashboardPage() {
         } = await supabase.auth.getUser()
 
         if (userError) {
-          throw new Error("Authentication required")
+          console.error("Auth error:", userError)
+          setError("Authentication required")
+          return
         }
 
         if (!user) {
