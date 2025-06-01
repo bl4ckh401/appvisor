@@ -89,26 +89,79 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
 
   // Get usage stats on component mount
   useEffect(() => {
-    const fetchUsage = async () => {
-      if (!subscription) return;
-      
-      try {
-        const remaining = await getRemaining("gptImageGenerationsPerMonth");
-        const limit = getFeatureLimit("gptImageGenerationsPerMonth");
-        
-        if (limit === Number.POSITIVE_INFINITY) {
-          setUsageStats({ current: 0, limit: "Unlimited" });
-        } else {
-          const used = limit - remaining;
-          setUsageStats({ current: used, limit });
-        }
-      } catch (error) {
-        console.error("Error fetching usage stats:", error);
-      }
-    };
+  const fetchUsage = async () => {
+    if (!subscription) return;
     
-    fetchUsage();
-  }, [subscription, getRemaining, getFeatureLimit]);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error("No authenticated user");
+        return;
+      }
+      
+      // Get the first day of current month
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // Query feature_usage table directly
+      const { data: usageData, error: usageError } = await supabase
+        .from('feature_usage')
+        .select('feature, count')
+        .eq('user_id', user.id)
+        .gte('timestamp', firstDayOfMonth.toISOString())
+        .in('feature', ['mockup_generation', 'gpt_image_generation', 'gpt_image_editing']);
+      
+      if (usageError) {
+        console.error("Error fetching usage data:", usageError);
+        
+        // If table doesn't exist, return default values
+        if (usageError.code === '42P01') {
+          setUsageStats({ current: 0, limit: 5 });
+          return;
+        }
+        
+        return;
+      }
+      
+      // Sum up usage for GPT image features
+      const gptGenerationUsage = usageData
+        ?.filter(item => item.feature === 'gpt_image_generation' || item.feature === 'gpt_image_editing')
+        ?.reduce((sum, item) => sum + item.count, 0) || 0;
+      
+      // Get limit from plan features
+      const limit = getFeatureLimit("gptImageGenerationsPerMonth");
+      
+      setUsageStats({ 
+        current: gptGenerationUsage, 
+        limit: limit === Number.POSITIVE_INFINITY ? "Unlimited" : limit 
+      });
+      
+      // Also fetch mockup usage if needed
+      const mockupUsage = usageData
+        ?.filter(item => item.feature === 'mockup_generation')
+        ?.reduce((sum, item) => sum + item.count, 0) || 0;
+      
+      console.log('Usage fetched from Supabase:', {
+        gptUsage: gptGenerationUsage,
+        mockupUsage: mockupUsage,
+        limit: limit
+      });
+      
+    } catch (error) {
+      console.error("Error fetching usage stats:", error);
+      setUsageStats({ current: 0, limit: 5 });
+    }
+  };
+  
+  fetchUsage();
+  
+  // Optionally refresh usage periodically
+  const interval = setInterval(fetchUsage, 30000); // Refresh every 30 seconds
+  
+  return () => clearInterval(interval);
+}, [subscription, getFeatureLimit]);
 
   const constructDetailedPrompt = () => {
     // Build a comprehensive prompt from all settings
