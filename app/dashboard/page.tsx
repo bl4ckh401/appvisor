@@ -147,7 +147,7 @@ export default function DashboardPage() {
 
             {/* Recent Activity */}
             <div className="order-1 xl:order-2">
-              <RecentActivity projects={projects} mockups={} />
+              <RecentActivity projects={projects} />
             </div>
           </div>
         </div>
