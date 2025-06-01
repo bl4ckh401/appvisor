@@ -53,6 +53,13 @@ export default function LandingPage() {
     },
   ]
 
+  const mImages = [
+    "https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/IMPORTANT--Use-the-u-134fba4f.png",
+    "https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/IMPORTANT--Use-the-u-4bc2fe05.png",
+    "https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/IMPORTANT--Use-the-u-4645bad6.png",
+    "https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/IMPORTANT--Use-the-u-edf71a61.png"
+  ]
+
   const integrations = [
     {
       name: "App Store Connect",
@@ -340,19 +347,25 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.1 }}
+
             >
-              <ModernCard variant="glass" className="h-full overflow-hidden group cursor-pointer">
-                <div className="relative h-full">
-                  <img
-                    src="/placeholder.svg?height=300&width=200&text=Meditation"
-                    alt="Meditation app mockup"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                    <span className="text-white font-medium text-sm">Mindful Moments</span>
+
+            {mImages.map((img)=>{
+              return(
+                <ModernCard variant="glass" className="h-full overflow-hidden group cursor-pointer">
+                  <div className="relative h-full">
+                    <img
+                      src={img}
+                      alt="Meditation app mockup"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                      <span className="text-white font-medium text-sm">Mindful Moments</span>
+                    </div>
                   </div>
-                </div>
-              </ModernCard>
+                </ModernCard>
+              )
+            })}
             </motion.div>
 
             <motion.div
