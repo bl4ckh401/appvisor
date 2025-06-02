@@ -83,9 +83,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-
-      <a href="https://www.producthunt.com/products/appvisor?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-appvisor" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=972823&theme=dark&t=1748849826697" alt="AppVisor - Generate&#0032;lit&#0032;app&#0032;store&#0032;mockups&#0032;in&#0032;minutes&#0046; | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
-      
       {/* Hero Section */}
       <section className="relative overflow-hidden px-4 py-12 md:px-6 md:py-16 lg:py-20">
         {/* Background Elements */}
