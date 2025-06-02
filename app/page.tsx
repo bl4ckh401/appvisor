@@ -26,32 +26,36 @@ export default function LandingPage() {
   }
 
   const coreFeatures = [
-    {
-      icon: <Upload className="h-5 w-5" />,
-      title: "Smart Upload System",
-      description:
-        "Drag & drop screenshots or upload from device. Supports PNG, JPG, and batch uploads up to 50 files.",
-      details: "Our intelligent upload system automatically detects device types and optimizes images for processing.",
-    },
-    {
-      icon: <Brain className="h-5 w-5" />,
-      title: "AI-Powered Analysis",
-      description: "Advanced AI analyzes your screenshots and suggests optimal layouts, colors, and positioning.",
-      details: "Machine learning algorithms trained on thousands of successful app store listings.",
-    },
-    {
-      icon: <Wand2 className="h-5 w-5" />,
-      title: "One-Click Generation",
-      description: "Generate professional mockups instantly with customizable templates and smart automation.",
-      details: "Choose from 50+ templates or let AI create custom layouts based on your app category.",
-    },
-    {
-      icon: <Edit3 className="h-5 w-5" />,
-      title: "Advanced Customization",
-      description: "Fine-tune colors, backgrounds, text, and device frames to match your brand perfectly.",
-      details: "Full control over every design element with real-time preview and undo/redo functionality.",
-    },
-  ]
+  {
+    icon: <Upload className="h-5 w-5" />,
+    title: "Smart Upload System",
+    description:
+      "Drag & drop screenshots or upload from device. Supports PNG, JPG, and batch uploads up to 50 files.",
+    details: "Our intelligent upload system automatically detects device types and optimizes images for processing.",
+    comingSoon: true, // Add this flag
+  },
+  {
+    icon: <Brain className="h-5 w-5" />,
+    title: "AI-Powered Analysis",
+    description: "Advanced AI analyzes your screenshots and suggests optimal layouts, colors, and positioning.",
+    details: "Machine learning algorithms trained on thousands of successful app store listings.",
+    comingSoon: true, // Add this flag
+  },
+  {
+    icon: <Wand2 className="h-5 w-5" />,
+    title: "One-Click Generation",
+    description: "Generate professional mockups instantly with customizable templates and smart automation.",
+    details: "Choose from 50+ templates or let AI create custom layouts based on your app category.",
+    comingSoon: false,
+  },
+  {
+    icon: <Edit3 className="h-5 w-5" />,
+    title: "Advanced Customization",
+    description: "Fine-tune colors, backgrounds, text, and device frames to match your brand perfectly.",
+    details: "Full control over every design element with real-time preview and undo/redo functionality.",
+    comingSoon: false,
+  },
+]
 
   const mImages = [
     "https://xihisyxduimzjfaxiupk.supabase.co/storage/v1/object/public/assets/dd83a76f-80ff-4072-bbb5-d82095aa18c6/edited-images/IMPORTANT--Use-the-u-134fba4f.png",
@@ -233,28 +237,49 @@ export default function LandingPage() {
                     variant={activeFeature === index ? "gradient" : "glass"}
                     className={`p-4 cursor-pointer transition-all duration-300 ${
                       activeFeature === index ? "scale-105" : ""
-                    }`}
+                    } ${feature.comingSoon ? "relative overflow-hidden" : ""}`}
                     onClick={() => setActiveFeature(index)}
                   >
+                    {feature.comingSoon && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <div className="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-1 text-xs font-medium text-amber-500">
+                          <Clock className="h-3 w-3" />
+                          Coming Soon
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex items-start space-x-3">
                       <div
                         className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                           activeFeature === index
                             ? "bg-white/20 text-white"
-                            : "bg-gradient-to-r from-primary to-accent text-white"
+                            : feature.comingSoon 
+                              ? "bg-muted/50 text-muted-foreground"
+                              : "bg-gradient-to-r from-primary to-accent text-white"
                         }`}
                       >
                         {feature.icon}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 pr-8">
                         <h3
                           className={`text-lg font-semibold mb-1 ${
-                            activeFeature === index ? "text-white" : "text-foreground"
+                            activeFeature === index 
+                              ? "text-white" 
+                              : feature.comingSoon 
+                                ? "text-muted-foreground"
+                                : "text-foreground"
                           }`}
                         >
                           {feature.title}
                         </h3>
-                        <p className={`text-sm ${activeFeature === index ? "text-white/90" : "text-muted-foreground"}`}>
+                        <p className={`text-sm ${
+                          activeFeature === index 
+                            ? "text-white/90" 
+                            : feature.comingSoon
+                              ? "text-muted-foreground/80"
+                              : "text-muted-foreground"
+                        }`}>
                           {feature.description}
                         </p>
                       </div>
@@ -273,6 +298,13 @@ export default function LandingPage() {
             >
               <ModernCard variant="glass" className="p-6">
                 <div className="space-y-4">
+                  {coreFeatures[activeFeature].comingSoon && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <Clock className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm font-medium text-amber-500">This feature is coming soon!</span>
+                    </div>
+                  )}
+                  
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white">
                     {coreFeatures[activeFeature].icon}
                   </div>
@@ -280,9 +312,16 @@ export default function LandingPage() {
                     <h3 className="text-xl font-bold mb-3">{coreFeatures[activeFeature].title}</h3>
                     <p className="text-muted-foreground leading-relaxed">{coreFeatures[activeFeature].details}</p>
                   </div>
-                  <ModernButton variant="gradient" asChild>
-                    <Link href="/auth">Try This Feature</Link>
-                  </ModernButton>
+                  
+                  {coreFeatures[activeFeature].comingSoon ? (
+                    <div className="flex items-center justify-center p-3 rounded-lg bg-muted/50">
+                      <span className="text-sm text-muted-foreground">We're working hard to bring this feature to you soon!</span>
+                    </div>
+                  ) : (
+                    <ModernButton variant="gradient" asChild>
+                      <Link href="/auth">Try This Feature</Link>
+                    </ModernButton>
+                  )}
                 </div>
               </ModernCard>
             </motion.div>
