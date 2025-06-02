@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@/lib/supabase/client"
 
 interface GPTImageGeneratorProps {
   onImageGenerated: (imageUrl: string) => void
@@ -90,14 +91,13 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
   // Get usage stats on component mount
   useEffect(() => {
   const fetchUsage = async () => {
-    if (!subscription) return;
-    
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         console.error("No authenticated user");
+        setUsageStats({ current: 0, limit: 5 });
         return;
       }
       
@@ -105,48 +105,51 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       
-      // Query feature_usage table directly
+      // Query feature_usage table directly - only get GPT image features
       const { data: usageData, error: usageError } = await supabase
         .from('feature_usage')
-        .select('feature, count')
+        .select('count')
         .eq('user_id', user.id)
         .gte('timestamp', firstDayOfMonth.toISOString())
-        .in('feature', ['mockup_generation', 'gpt_image_generation', 'gpt_image_editing']);
+        .in('feature', ['gpt_image_generation', 'gpt_image_editing']);
       
       if (usageError) {
         console.error("Error fetching usage data:", usageError);
         
-        // If table doesn't exist, return default values
+        // If table doesn't exist, just set defaults
         if (usageError.code === '42P01') {
+          console.log("Feature usage table doesn't exist yet");
           setUsageStats({ current: 0, limit: 5 });
           return;
         }
         
+        setUsageStats({ current: 0, limit: 5 });
         return;
       }
       
-      // Sum up usage for GPT image features
-      const gptGenerationUsage = usageData
-        ?.filter(item => item.feature === 'gpt_image_generation' || item.feature === 'gpt_image_editing')
-        ?.reduce((sum, item) => sum + item.count, 0) || 0;
+      // Sum up all GPT image usage
+      const totalGptUsage = usageData?.reduce((sum, item) => sum + item.count, 0) || 0;
       
-      // Get limit from plan features
-      const limit = getFeatureLimit("gptImageGenerationsPerMonth");
+      // Get limit based on subscription
+      const plan = subscription?.plan || "free";
+      let limit = 5; // Default free tier
+      
+      if (plan === "pro") {
+        limit = 50;
+      } else if (plan === "team") {
+        limit = Number.POSITIVE_INFINITY;
+      }
       
       setUsageStats({ 
-        current: gptGenerationUsage, 
+        current: totalGptUsage, 
         limit: limit === Number.POSITIVE_INFINITY ? "Unlimited" : limit 
       });
       
-      // Also fetch mockup usage if needed
-      const mockupUsage = usageData
-        ?.filter(item => item.feature === 'mockup_generation')
-        ?.reduce((sum, item) => sum + item.count, 0) || 0;
-      
-      console.log('Usage fetched from Supabase:', {
-        gptUsage: gptGenerationUsage,
-        mockupUsage: mockupUsage,
-        limit: limit
+      console.log('GPT usage fetched:', {
+        current: totalGptUsage,
+        limit: limit,
+        plan: plan,
+        recordsFound: usageData?.length || 0
       });
       
     } catch (error) {
@@ -155,13 +158,14 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
     }
   };
   
+  // Fetch immediately
   fetchUsage();
   
-  // Optionally refresh usage periodically
-  const interval = setInterval(fetchUsage, 30000); // Refresh every 30 seconds
+  // Refresh every 30 seconds
+  const interval = setInterval(fetchUsage, 30000);
   
   return () => clearInterval(interval);
-}, [subscription, getFeatureLimit]);
+}, [subscription]);
 
   const constructDetailedPrompt = () => {
     // Build a comprehensive prompt from all settings
@@ -333,6 +337,13 @@ export function GPTImageGenerator({ onImageGenerated }: GPTImageGeneratorProps) 
       } catch (trackingError) {
         console.warn("Failed to track usage:", trackingError)
       }
+
+      await trackFeatureUsage("mockup_generation", {
+      provider: "gpt",
+      has_screenshot: true,
+      aspect_ratio: aspectRatio,
+    });
+
 
       const mockupPrompt = constructDetailedPrompt();
 
