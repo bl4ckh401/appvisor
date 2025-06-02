@@ -3,9 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { ArrowRight, Sparkles, Star, Zap, Palette, Upload, Edit3, Brain, Wand2 } from "lucide-react"
 import { ModernCard } from "@/components/ui/modern-card"
 import { ModernButton } from "@/components/ui/modern-button"
+import { ArrowRight, Sparkles, Star, Zap, Palette, Upload, Edit3, Brain, Wand2, Clock } from "lucide-react"
 
 export default function LandingPage() {
   const [showPricing, setShowPricing] = useState(false)
